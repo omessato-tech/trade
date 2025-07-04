@@ -140,12 +140,12 @@ export default function TradeSim() {
 
   return (
     <div className="w-full max-w-6xl mx-auto bg-background text-foreground font-body animate-fade-in">
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4 p-4 bg-card rounded-lg border border-border">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2 sm:gap-4 p-2 sm:p-4 bg-card rounded-lg border border-border">
         <div className="flex items-baseline gap-4">
-            <h1 className="text-xl font-bold tracking-tighter whitespace-nowrap">TRADE SIMULATOR</h1>
-            <span className="text-lg font-medium text-muted-foreground">USD/EUR</span>
+            <h1 className="text-lg sm:text-xl font-bold tracking-tighter whitespace-nowrap">TRADE SIMULATOR</h1>
+            <span className="text-base sm:text-lg font-medium text-muted-foreground">USD/EUR</span>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2 text-xs w-full sm:w-auto">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-2 text-xs w-full sm:w-auto">
             <div className="flex flex-col items-start sm:items-end">
                 <span className="text-muted-foreground">Saldo</span>
                 <span id="balance-value" className={cn(
@@ -181,7 +181,7 @@ export default function TradeSim() {
                     variant={activeTimeframe === tf ? "secondary" : "ghost"}
                     size="sm"
                     onClick={() => setActiveTimeframe(tf)}
-                    className="text-xs h-7"
+                    className="text-xs h-7 px-2 sm:px-3"
                 >
                     {tf}
                 </Button>
@@ -204,24 +204,24 @@ export default function TradeSim() {
         <div id="notifications" className="text-center text-muted-foreground text-sm h-6 font-semibold flex-grow">
             {notification}
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-2 sm:gap-4">
             <Button 
                 id="buy-button"
                 size="lg"
-                className="h-14 text-lg font-bold bg-primary/90 hover:bg-primary text-primary-foreground transform transition-transform disabled:scale-100"
+                className="h-12 sm:h-14 text-base sm:text-lg font-bold bg-primary/90 hover:bg-primary text-primary-foreground transform transition-transform disabled:scale-100"
                 onClick={() => handleTrade('buy')}
                 disabled={isTrading || balance < 50}
             >
-                <ArrowUp className="mr-2 h-6 w-6" /> COMPRAR
+                <ArrowUp className="mr-2 h-5 w-5 sm:h-6 sm:w-6" /> COMPRAR
             </Button>
             <Button 
                 id="sell-button"
                 size="lg"
-                className="h-14 text-lg font-bold bg-destructive/90 hover:bg-destructive text-destructive-foreground transform transition-transform disabled:scale-100"
+                className="h-12 sm:h-14 text-base sm:text-lg font-bold bg-destructive/90 hover:bg-destructive text-destructive-foreground transform transition-transform disabled:scale-100"
                 onClick={() => handleTrade('sell')}
                 disabled={isTrading || balance < 50}
             >
-                <ArrowDown className="mr-2 h-6 w-6" /> VENDER
+                <ArrowDown className="mr-2 h-5 w-5 sm:h-6 sm:w-6" /> VENDER
             </Button>
         </div>
       </footer>

@@ -4,7 +4,13 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import TradeChart from './trade-chart';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { ArrowUp, ArrowDown, ZoomIn, ZoomOut } from 'lucide-react';
+import { ArrowUp, ArrowDown, ZoomIn, ZoomOut, Clock } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 const timeframes = ['1s', '5s', '30s', '1m', '5m', '15m', '1H', '4H', '1D'];
 const timeframeDurations: { [key: string]: number } = {
@@ -195,21 +201,28 @@ export default function TradeSim() {
       </header>
 
       <main className="bg-card p-1 sm:p-2 rounded-lg border border-border">
-        <div className="flex items-center gap-2 p-2">
-            <div className="flex-1 overflow-x-auto whitespace-nowrap no-scrollbar py-1">
-                {timeframes.map(tf => (
-                    <Button 
-                        key={tf}
-                        variant={activeTimeframe === tf ? "secondary" : "ghost"}
-                        size="sm"
-                        onClick={() => setActiveTimeframe(tf)}
-                        className="text-xs h-7 px-2 sm:px-3 mr-1"
-                    >
-                        {tf}
+        <div className="flex items-center justify-between p-2">
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="text-xs h-7 w-24 justify-start px-2 sm:px-3">
+                        <Clock className="mr-2 h-4 w-4" />
+                        <span>{activeTimeframe}</span>
                     </Button>
-                ))}
-            </div>
-            <div className="flex items-center gap-1 ml-auto pl-2">
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                    {timeframes.map(tf => (
+                        <DropdownMenuItem
+                            key={tf}
+                            onSelect={() => setActiveTimeframe(tf)}
+                            className="text-xs"
+                        >
+                            {tf}
+                        </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            <div className="flex items-center gap-1">
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleZoomIn} disabled={zoomLevel <= 15}>
                     <ZoomIn className="h-4 w-4" />
                 </Button>

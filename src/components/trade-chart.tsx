@@ -82,7 +82,7 @@ const TradeChart = ({ data, visibleRange }: { data: any[], visibleRange?: number
         ticks: {
           color: 'hsl(var(--muted-foreground))',
           callback: function(value: any) {
-            return 'R$ ' + value.toFixed(2);
+            return value.toFixed(4);
           },
           font: {
             family: 'Inter, sans-serif'
@@ -91,7 +91,6 @@ const TradeChart = ({ data, visibleRange }: { data: any[], visibleRange?: number
         position: 'right' as const
       }
     },
-    animation: false,
     color: {
       up: 'hsl(var(--primary))',
       down: 'hsl(var(--destructive))',

@@ -8,10 +8,11 @@ import { ArrowUp, ArrowDown, ZoomIn, ZoomOut } from 'lucide-react';
 
 const generateRandomCandle = (lastCandle: any) => {
     const now = new Date();
-    const open = lastCandle ? lastCandle.c : 1000 + (Math.random() - 0.5) * 10;
-    const close = open + (Math.random() - 0.5) * 15;
-    const high = Math.max(open, close) + Math.random() * 5;
-    const low = Math.min(open, close) - Math.random() * 5;
+    // Prices for USD/EUR
+    const open = lastCandle ? lastCandle.c : 1.0850 + (Math.random() - 0.5) * 0.001;
+    const close = open + (Math.random() - 0.5) * 0.0015;
+    const high = Math.max(open, close) + Math.random() * 0.0005;
+    const low = Math.min(open, close) - Math.random() * 0.0005;
     return { x: now.getTime(), o: open, h: high, l: low, c: close };
 };
 
@@ -40,9 +41,9 @@ export default function TradeSim() {
 
     let initialData: any[] = [];
     let lastCandle: any = null;
-    for(let i=0; i < 50; i++) {
+    for(let i=0; i < 200; i++) { // More initial data for zoom
         const candle = generateRandomCandle(lastCandle);
-        candle.x = new Date().getTime() - (50-i) * 60000;
+        candle.x = new Date().getTime() - (200-i) * 60000;
         initialData.push(candle);
         lastCandle = candle;
     }
@@ -69,7 +70,7 @@ export default function TradeSim() {
         const newCandle = generateRandomCandle(lastCandle);
         
         const newData = [...prevData, newCandle];
-        if (newData.length > 200) {
+        if (newData.length > 500) { // Keep more data for zoom
             newData.shift();
         }
 
@@ -87,7 +88,7 @@ export default function TradeSim() {
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(updateData, 500);
+    const interval = setInterval(updateData, 250); // Faster updates for fluidity
     return () => clearInterval(interval);
   }, [updateData]);
 
@@ -107,11 +108,11 @@ export default function TradeSim() {
         setBalance(newBalance);
         
         if (isWin) {
-            setNotification('GAIN! Operação bem-sucedida. +R$50,00');
+            setNotification('GAIN! Operação bem-sucedida. +$50.00');
             setLastResult('gain');
             gainSoundRef.current?.play().catch(e => console.error("Error playing gain sound:", e));
         } else {
-            setNotification('LOSS! Operação malsucedida. -R$50,00');
+            setNotification('LOSS! Operação malsucedida. -$50.00');
             setLastResult('loss');
             lossSoundRef.current?.play().catch(e => console.error("Error playing loss sound:", e));
         }
@@ -124,7 +125,7 @@ export default function TradeSim() {
           }
           setIsTrading(false);
         }, 2000);
-    }, 2500);
+    }, 1500); // Shorter analysis time for responsiveness
   };
   
   const timeframes = ['15m', '1H', '4H', '1D'];
@@ -140,7 +141,10 @@ export default function TradeSim() {
   return (
     <div className="w-full max-w-6xl mx-auto bg-background text-foreground font-body animate-fade-in">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4 p-4 bg-card rounded-lg border border-border">
-        <h1 className="text-xl font-bold tracking-tighter whitespace-nowrap">TRADE SIMULATOR</h1>
+        <div className="flex items-baseline gap-4">
+            <h1 className="text-xl font-bold tracking-tighter whitespace-nowrap">TRADE SIMULATOR</h1>
+            <span className="text-lg font-medium text-muted-foreground">USD/EUR</span>
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2 text-xs w-full sm:w-auto">
             <div className="flex flex-col items-start sm:items-end">
                 <span className="text-muted-foreground">Saldo</span>
@@ -151,19 +155,19 @@ export default function TradeSim() {
                         'text-destructive': lastResult === 'loss',
                     }
                 )}>
-                    R$ {balance.toFixed(2).replace('.', ',')}
+                    $ {balance.toFixed(2)}
                 </span>
             </div>
             <div className="flex flex-col items-start sm:items-end">
                 <span className="text-muted-foreground">24h High</span>
-                <span className="font-semibold">{marketData.high.toFixed(2)}</span>
+                <span className="font-semibold">{marketData.high.toFixed(4)}</span>
             </div>
             <div className="flex flex-col items-start sm:items-end">
                 <span className="text-muted-foreground">24h Low</span>
-                <span className="font-semibold">{marketData.low.toFixed(2)}</span>
+                <span className="font-semibold">{marketData.low.toFixed(4)}</span>
             </div>
             <div className="flex flex-col items-start sm:items-end">
-                <span className="text-muted-foreground">Volume (BNB)</span>
+                <span className="text-muted-foreground">Volume (USD)</span>
                 <span className="font-semibold">{marketData.volume.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
         </div>

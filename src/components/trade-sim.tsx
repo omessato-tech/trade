@@ -54,7 +54,9 @@ export default function TradeSim() {
   // Setup balance and sounds on mount
   useEffect(() => {
     const savedBalance = sessionStorage.getItem('tradeSimBalance');
-    setBalance(savedBalance ? parseFloat(savedBalance) : 1000);
+    if (savedBalance) {
+        setBalance(parseFloat(savedBalance));
+    }
 
     gainSoundRef.current = new Audio('/sounds/gain.mp3');
     lossSoundRef.current = new Audio('/sounds/loss.mp3');
@@ -85,9 +87,14 @@ export default function TradeSim() {
   }, [activeTimeframe]);
 
   useEffect(() => {
-    sessionStorage.setItem('tradeSimBalance', balance.toString());
+    // Persist balance to session storage whenever it changes.
+    if (balance !== 1000) { // Avoid saving the initial default value
+        sessionStorage.setItem('tradeSimBalance', balance.toString());
+    }
+    
+    // Animate the balance value on change.
     if (lastResult) {
-        const timer = setTimeout(() => setLastResult(null), 500); // Shorten pulse duration
+        const timer = setTimeout(() => setLastResult(null), 500);
         return () => clearTimeout(timer);
     }
   }, [balance, lastResult]);
@@ -123,50 +130,61 @@ export default function TradeSim() {
     return () => clearInterval(interval);
   }, [activeTimeframe, updateData]);
 
-  // Countdown timer effect
+  // Countdown timer and trade finalization logic
   useEffect(() => {
-    if (countdown === null || !isTrading) return;
+    // Don't do anything if we are not in a trading state.
+    if (!isTrading || countdown === null) {
+      return;
+    }
 
+    // If countdown is active, tick down.
     if (countdown > 0) {
-      const timer = setTimeout(() => {
+      const timerId = setTimeout(() => {
         const newCountdown = countdown - 1;
         setCountdown(newCountdown);
         setNotification(`Aguarde... 0:${newCountdown.toString().padStart(2, '0')}`);
       }, 1000);
-      return () => clearTimeout(timer);
+      return () => clearTimeout(timerId);
     }
 
+    // When countdown reaches 0, finalize the trade.
     if (countdown === 0) {
       const isWin = Math.random() > 0.45;
       const amount = 50;
-      const newBalance = isWin ? balance + amount : balance - amount;
-      setBalance(newBalance);
-      
       const outcomeType = isWin ? 'gain' : 'loss';
-      setLastResult(outcomeType);
+
+      // Update balance using functional update to avoid stale state.
+      setBalance(prevBalance => {
+        const newBalance = isWin ? prevBalance + amount : prevBalance - amount;
+        
+        // After 3 seconds, reset the UI for the next trade.
+        setTimeout(() => {
+          if (newBalance >= 50) {
+            setNotification('Aguardando sua operação...');
+          } else {
+            setNotification('Fim de jogo! Recarregue para tentar novamente.');
+          }
+          setIsTrading(false);
+        }, 3000);
+
+        return newBalance;
+      });
       
-      const resultMessage = `${outcomeType.toUpperCase()}! Você ${outcomeType === 'gain' ? 'ganhou' : 'perdeu'} $${amount.toFixed(2)}.`;
-      setNotification(resultMessage);
+      // Provide immediate feedback.
+      setLastResult(outcomeType);
+      setNotification(`${outcomeType.toUpperCase()}! Você ${outcomeType === 'gain' ? 'ganhou' : 'perdeu'} $${amount.toFixed(2)}.`);
       
       if (isWin) {
-          gainSoundRef.current?.play().catch(e => console.error("Error playing gain sound:", e));
+        gainSoundRef.current?.play().catch(e => console.error("Error playing gain sound:", e));
       } else {
-          lossSoundRef.current?.play().catch(e => console.error("Error playing loss sound:", e));
+        lossSoundRef.current?.play().catch(e => console.error("Error playing loss sound:", e));
       }
-
-      const resetTimer = setTimeout(() => {
-        if (newBalance >= 50) {
-          setNotification('Aguardando sua operação...');
-        } else {
-          setNotification('Fim de jogo! Recarregue para tentar novamente.');
-        }
-        setIsTrading(false);
-        setCountdown(null);
-      }, 3000); // Show message for 3 seconds
-
-      return () => clearTimeout(resetTimer);
+      
+      // Stop the countdown by setting it to null. This prevents this block from re-running.
+      setCountdown(null);
     }
-  }, [countdown, isTrading, balance]);
+  }, [isTrading, countdown]);
+
 
   const handleTrade = (type: 'buy' | 'sell') => {
     if (isTrading || balance < 50) {

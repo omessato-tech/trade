@@ -179,7 +179,7 @@ export default function TradeSim() {
           const newBalance = isWin ? prevBalance + amount : prevBalance - amount;
           
           const newRecord: TradeRecord = {
-            id: Date.now(),
+            id: Date.now() + Math.random(),
             timestamp: new Date(),
             type: currentTradeType,
             outcome: outcomeType,

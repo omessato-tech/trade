@@ -195,7 +195,7 @@ export default function TradeSim() {
       {tradeOutcome && (
           <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50 animate-fade-in">
               <div className={cn(
-                  "flex flex-col items-center justify-center p-10 rounded-2xl shadow-2xl w-64 animate-in fade-in-0 zoom-in-95",
+                  "flex flex-col items-center justify-center p-10 rounded-2xl shadow-2xl w-64",
                   tradeOutcome.type === 'gain' ? 'bg-primary' : 'bg-destructive'
               )}>
                   <h2 className="text-4xl font-black tracking-tighter text-white">

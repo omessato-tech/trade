@@ -46,6 +46,9 @@ export default function TradeSim() {
   const [activeTimeframe, setActiveTimeframe] = useState('1m');
   const [zoomLevel, setZoomLevel] = useState(50);
 
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [tradeOutcome, setTradeOutcome] = useState<{ type: 'gain' | 'loss'; amount: number } | null>(null);
+
   const gainSoundRef = useRef<HTMLAudioElement | null>(null);
   const lossSoundRef = useRef<HTMLAudioElement | null>(null);
 
@@ -121,6 +124,51 @@ export default function TradeSim() {
     return () => clearInterval(interval);
   }, [activeTimeframe, updateData]);
 
+  // Countdown timer effect
+  useEffect(() => {
+    if (countdown === null || !isTrading) return;
+
+    if (countdown > 0) {
+      const timer = setTimeout(() => {
+        const newCountdown = countdown - 1;
+        setCountdown(newCountdown);
+        setNotification(`Aguarde... 0:${newCountdown.toString().padStart(2, '0')}`);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+
+    if (countdown === 0) {
+      const isWin = Math.random() > 0.45;
+      const amount = 50;
+      const newBalance = isWin ? balance + amount : balance - amount;
+      setBalance(newBalance);
+      
+      const outcome = { type: (isWin ? 'gain' : 'loss') as 'gain' | 'loss', amount };
+      setTradeOutcome(outcome);
+      setLastResult(outcome.type);
+      setNotification(''); // Clear notification while card is shown
+      
+      if (isWin) {
+          gainSoundRef.current?.play().catch(e => console.error("Error playing gain sound:", e));
+      } else {
+          lossSoundRef.current?.play().catch(e => console.error("Error playing loss sound:", e));
+      }
+
+      const resetTimer = setTimeout(() => {
+        setTradeOutcome(null);
+        if (newBalance >= 50) {
+          setNotification('Aguardando sua operação...');
+        } else {
+          setNotification('Fim de jogo! Recarregue para tentar novamente.');
+        }
+        setIsTrading(false);
+        setCountdown(null);
+      }, 3000); // Show card for 3 seconds
+
+      return () => clearTimeout(resetTimer);
+    }
+  }, [countdown, isTrading, balance]);
+
   const handleTrade = (type: 'buy' | 'sell') => {
     if (isTrading || balance < 50) {
       if(balance < 50) setNotification('Saldo insuficiente para operar.');
@@ -129,32 +177,9 @@ export default function TradeSim() {
     
     setIsTrading(true);
     setLastResult(null);
-    setNotification(`Sinal de ${type === 'buy' ? 'COMPRA' : 'VENDA'}! Analisando...`);
-    
-    setTimeout(() => {
-        const isWin = Math.random() > 0.45;
-        const newBalance = isWin ? balance + 50 : balance - 50;
-        setBalance(newBalance);
-        
-        if (isWin) {
-            setNotification('GAIN! Operação bem-sucedida. +$50.00');
-            setLastResult('gain');
-            gainSoundRef.current?.play().catch(e => console.error("Error playing gain sound:", e));
-        } else {
-            setNotification('LOSS! Operação malsucedida. -$50.00');
-            setLastResult('loss');
-            lossSoundRef.current?.play().catch(e => console.error("Error playing loss sound:", e));
-        }
-
-        setTimeout(() => {
-          if (newBalance >= 50) {
-            setNotification('Aguardando sua operação...');
-          } else {
-            setNotification('Fim de jogo! Recarregue para tentar novamente.');
-          }
-          setIsTrading(false);
-        }, 2000);
-    }, 1500);
+    setTradeOutcome(null);
+    setCountdown(30);
+    setNotification(`Sinal de ${type === 'buy' ? 'COMPRA' : 'VENDA'}! Aguarde 0:30`);
   };
   
   const handleZoomIn = () => {
@@ -166,7 +191,23 @@ export default function TradeSim() {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto bg-background text-foreground font-body animate-fade-in">
+    <div className="w-full max-w-6xl mx-auto bg-background text-foreground font-body animate-fade-in relative">
+      {tradeOutcome && (
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50 animate-fade-in">
+              <div className={cn(
+                  "flex flex-col items-center justify-center p-10 rounded-2xl shadow-2xl w-64 transform transition-transform",
+                  tradeOutcome.type === 'gain' ? 'bg-primary' : 'bg-destructive'
+              )}>
+                  <h2 className="text-4xl font-black tracking-tighter text-white">
+                      {tradeOutcome.type === 'gain' ? 'GAIN' : 'LOSS'}
+                  </h2>
+                  <p className="text-5xl font-bold text-white mt-2">
+                      {tradeOutcome.type === 'gain' ? '+' : '-'}${tradeOutcome.amount.toFixed(2)}
+                  </p>
+              </div>
+          </div>
+      )}
+
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2 sm:gap-4 p-2 sm:p-4 bg-card rounded-lg border border-border">
         <div className="flex items-baseline gap-4">
             <h1 className="text-lg sm:text-xl font-bold tracking-tighter whitespace-nowrap">TRADE SIMULATOR</h1>

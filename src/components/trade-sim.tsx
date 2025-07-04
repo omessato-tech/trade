@@ -6,6 +6,19 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ArrowUp, ArrowDown, ZoomIn, ZoomOut } from 'lucide-react';
 
+const timeframes = ['1s', '5s', '30s', '1m', '5m', '15m', '1H', '4H', '1D'];
+const timeframeDurations: { [key: string]: number } = {
+  '1s': 1000,
+  '5s': 5000,
+  '30s': 30000,
+  '1m': 60000,
+  '5m': 300000,
+  '15m': 900000,
+  '1H': 3600000,
+  '4H': 14400000,
+  '1D': 86400000,
+};
+
 const generateRandomCandle = (lastCandle: any) => {
     const now = new Date();
     // Prices for USD/EUR
@@ -24,12 +37,13 @@ export default function TradeSim() {
   
   const [chartData, setChartData] = useState<any[]>([]);
   const [marketData, setMarketData] = useState({ high: 0, low: Infinity, volume: 0 });
-  const [activeTimeframe, setActiveTimeframe] = useState('15m');
+  const [activeTimeframe, setActiveTimeframe] = useState('1m');
   const [zoomLevel, setZoomLevel] = useState(50);
 
   const gainSoundRef = useRef<HTMLAudioElement | null>(null);
   const lossSoundRef = useRef<HTMLAudioElement | null>(null);
 
+  // Setup balance and sounds on mount
   useEffect(() => {
     const savedBalance = sessionStorage.getItem('tradeSimBalance');
     setBalance(savedBalance ? parseFloat(savedBalance) : 1000);
@@ -38,23 +52,29 @@ export default function TradeSim() {
     lossSoundRef.current = new Audio('/sounds/loss.mp3');
     gainSoundRef.current.volume = 0.3;
     lossSoundRef.current.volume = 0.3;
+  }, []);
 
+  // Regenerate chart history when timeframe changes
+  useEffect(() => {
     let initialData: any[] = [];
     let lastCandle: any = null;
-    for(let i=0; i < 200; i++) { // More initial data for zoom
+    const duration = timeframeDurations[activeTimeframe];
+    for(let i=0; i < 200; i++) { // Generate initial data for zoom
         const candle = generateRandomCandle(lastCandle);
-        candle.x = new Date().getTime() - (200-i) * 60000;
+        candle.x = new Date().getTime() - (200-i) * duration;
         initialData.push(candle);
         lastCandle = candle;
     }
     setChartData(initialData);
-    setMarketData({
-        high: Math.max(...initialData.map(d => d.h)),
-        low: Math.min(...initialData.map(d => d.l)),
-        volume: 327229.98
-    });
 
-  }, []);
+    if (initialData.length > 0) {
+        setMarketData(prevMarketData => ({
+            high: Math.max(...initialData.map(d => d.h)),
+            low: Math.min(...initialData.map(d => d.l)),
+            volume: prevMarketData.volume || 327229.98
+        }));
+    }
+  }, [activeTimeframe]);
 
   useEffect(() => {
     sessionStorage.setItem('tradeSimBalance', balance.toString());
@@ -66,11 +86,12 @@ export default function TradeSim() {
 
   const updateData = useCallback(() => {
     setChartData(prevData => {
-        const lastCandle = prevData.length > 0 ? prevData[prevData.length - 1] : null;
+        if (prevData.length === 0) return [];
+        const lastCandle = prevData[prevData.length - 1];
         const newCandle = generateRandomCandle(lastCandle);
         
         const newData = [...prevData, newCandle];
-        if (newData.length > 500) { // Keep more data for zoom
+        if (newData.length > 500) { // Keep a maximum of 500 candles
             newData.shift();
         }
 
@@ -87,10 +108,12 @@ export default function TradeSim() {
     });
   }, []);
 
+  // Update chart data on an interval based on the active timeframe
   useEffect(() => {
-    const interval = setInterval(updateData, 250); // Faster updates for fluidity
+    const duration = timeframeDurations[activeTimeframe];
+    const interval = setInterval(updateData, duration);
     return () => clearInterval(interval);
-  }, [updateData]);
+  }, [activeTimeframe, updateData]);
 
   const handleTrade = (type: 'buy' | 'sell') => {
     if (isTrading || balance < 50) {
@@ -125,11 +148,9 @@ export default function TradeSim() {
           }
           setIsTrading(false);
         }, 2000);
-    }, 1500); // Shorter analysis time for responsiveness
+    }, 1500);
   };
   
-  const timeframes = ['15m', '1H', '4H', '1D'];
-
   const handleZoomIn = () => {
     setZoomLevel(prev => Math.max(15, prev - 5));
   };
@@ -175,18 +196,20 @@ export default function TradeSim() {
 
       <main className="bg-card p-1 sm:p-2 rounded-lg border border-border">
         <div className="flex items-center gap-2 p-2">
-            {timeframes.map(tf => (
-                <Button 
-                    key={tf}
-                    variant={activeTimeframe === tf ? "secondary" : "ghost"}
-                    size="sm"
-                    onClick={() => setActiveTimeframe(tf)}
-                    className="text-xs h-7 px-2 sm:px-3"
-                >
-                    {tf}
-                </Button>
-            ))}
-            <div className="flex items-center gap-1 ml-auto">
+            <div className="flex-1 overflow-x-auto whitespace-nowrap no-scrollbar py-1">
+                {timeframes.map(tf => (
+                    <Button 
+                        key={tf}
+                        variant={activeTimeframe === tf ? "secondary" : "ghost"}
+                        size="sm"
+                        onClick={() => setActiveTimeframe(tf)}
+                        className="text-xs h-7 px-2 sm:px-3 mr-1"
+                    >
+                        {tf}
+                    </Button>
+                ))}
+            </div>
+            <div className="flex items-center gap-1 ml-auto pl-2">
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleZoomIn} disabled={zoomLevel <= 15}>
                     <ZoomIn className="h-4 w-4" />
                 </Button>

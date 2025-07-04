@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import TradeChart from './trade-chart';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -48,20 +48,12 @@ export default function TradeSim() {
 
   const [countdown, setCountdown] = useState<number | null>(null);
 
-  const gainSoundRef = useRef<HTMLAudioElement | null>(null);
-  const lossSoundRef = useRef<HTMLAudioElement | null>(null);
-
-  // Setup balance and sounds on mount
+  // Setup balance on mount
   useEffect(() => {
     const savedBalance = sessionStorage.getItem('tradeSimBalance');
     if (savedBalance) {
         setBalance(parseFloat(savedBalance));
     }
-
-    gainSoundRef.current = new Audio('/sounds/gain.mp3');
-    lossSoundRef.current = new Audio('/sounds/loss.mp3');
-    gainSoundRef.current.volume = 0.3;
-    lossSoundRef.current.volume = 0.3;
   }, []);
 
   // Regenerate chart history when timeframe changes
@@ -132,12 +124,10 @@ export default function TradeSim() {
 
   // Countdown timer and trade finalization logic
   useEffect(() => {
-    // Don't do anything if we are not in a trading state.
     if (!isTrading || countdown === null) {
       return;
     }
 
-    // If countdown is active, tick down.
     if (countdown > 0) {
       const timerId = setTimeout(() => {
         const newCountdown = countdown - 1;
@@ -147,17 +137,14 @@ export default function TradeSim() {
       return () => clearTimeout(timerId);
     }
 
-    // When countdown reaches 0, finalize the trade.
     if (countdown === 0) {
       const isWin = Math.random() > 0.45;
       const amount = 50;
       const outcomeType = isWin ? 'gain' : 'loss';
 
-      // Update balance using functional update to avoid stale state.
       setBalance(prevBalance => {
         const newBalance = isWin ? prevBalance + amount : prevBalance - amount;
         
-        // After 3 seconds, reset the UI for the next trade.
         setTimeout(() => {
           if (newBalance >= 50) {
             setNotification('Aguardando sua operação...');
@@ -170,17 +157,9 @@ export default function TradeSim() {
         return newBalance;
       });
       
-      // Provide immediate feedback.
       setLastResult(outcomeType);
       setNotification(`${outcomeType.toUpperCase()}! Você ${outcomeType === 'gain' ? 'ganhou' : 'perdeu'} $${amount.toFixed(2)}.`);
       
-      if (isWin) {
-        gainSoundRef.current?.play().catch(e => console.error("Error playing gain sound:", e));
-      } else {
-        lossSoundRef.current?.play().catch(e => console.error("Error playing loss sound:", e));
-      }
-      
-      // Stop the countdown by setting it to null. This prevents this block from re-running.
       setCountdown(null);
     }
   }, [isTrading, countdown]);

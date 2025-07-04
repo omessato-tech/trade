@@ -47,7 +47,6 @@ export default function TradeSim() {
   const [zoomLevel, setZoomLevel] = useState(50);
 
   const [countdown, setCountdown] = useState<number | null>(null);
-  const [tradeOutcome, setTradeOutcome] = useState<{ type: 'gain' | 'loss'; amount: number } | null>(null);
 
   const gainSoundRef = useRef<HTMLAudioElement | null>(null);
   const lossSoundRef = useRef<HTMLAudioElement | null>(null);
@@ -88,7 +87,7 @@ export default function TradeSim() {
   useEffect(() => {
     sessionStorage.setItem('tradeSimBalance', balance.toString());
     if (lastResult) {
-        const timer = setTimeout(() => setLastResult(null), 1000);
+        const timer = setTimeout(() => setLastResult(null), 500); // Shorten pulse duration
         return () => clearTimeout(timer);
     }
   }, [balance, lastResult]);
@@ -143,10 +142,11 @@ export default function TradeSim() {
       const newBalance = isWin ? balance + amount : balance - amount;
       setBalance(newBalance);
       
-      const outcome = { type: (isWin ? 'gain' : 'loss') as 'gain' | 'loss', amount };
-      setTradeOutcome(outcome);
-      setLastResult(outcome.type);
-      setNotification(''); // Clear notification while card is shown
+      const outcomeType = isWin ? 'gain' : 'loss';
+      setLastResult(outcomeType);
+      
+      const resultMessage = `${outcomeType.toUpperCase()}! Você ${outcomeType === 'gain' ? 'ganhou' : 'perdeu'} $${amount.toFixed(2)}.`;
+      setNotification(resultMessage);
       
       if (isWin) {
           gainSoundRef.current?.play().catch(e => console.error("Error playing gain sound:", e));
@@ -155,7 +155,6 @@ export default function TradeSim() {
       }
 
       const resetTimer = setTimeout(() => {
-        setTradeOutcome(null);
         if (newBalance >= 50) {
           setNotification('Aguardando sua operação...');
         } else {
@@ -163,7 +162,7 @@ export default function TradeSim() {
         }
         setIsTrading(false);
         setCountdown(null);
-      }, 3000); // Show card for 3 seconds
+      }, 3000); // Show message for 3 seconds
 
       return () => clearTimeout(resetTimer);
     }
@@ -177,7 +176,6 @@ export default function TradeSim() {
     
     setIsTrading(true);
     setLastResult(null);
-    setTradeOutcome(null);
     setCountdown(30);
     setNotification(`Sinal de ${type === 'buy' ? 'COMPRA' : 'VENDA'}! Aguarde 0:30`);
   };
@@ -192,22 +190,6 @@ export default function TradeSim() {
 
   return (
     <div className="w-full max-w-6xl mx-auto bg-background text-foreground font-body animate-fade-in relative">
-      {tradeOutcome && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50 animate-fade-in">
-              <div className={cn(
-                  "flex flex-col items-center justify-center p-10 rounded-2xl shadow-2xl w-64",
-                  tradeOutcome.type === 'gain' ? 'bg-primary' : 'bg-destructive'
-              )}>
-                  <h2 className="text-4xl font-black tracking-tighter text-white">
-                      {tradeOutcome.type === 'gain' ? 'GAIN' : 'LOSS'}
-                  </h2>
-                  <p className="text-5xl font-bold text-white mt-2">
-                      {tradeOutcome.type === 'gain' ? '+' : '-'}${tradeOutcome.amount.toFixed(2)}
-                  </p>
-              </div>
-          </div>
-      )}
-
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2 sm:gap-4 p-2 sm:p-4 bg-card rounded-lg border border-border">
         <div className="flex items-baseline gap-4">
             <h1 className="text-lg sm:text-xl font-bold tracking-tighter whitespace-nowrap">TRADE SIMULATOR</h1>
@@ -219,8 +201,8 @@ export default function TradeSim() {
                 <span id="balance-value" className={cn(
                     'text-base font-semibold transition-colors duration-300',
                     {
-                        'text-primary': lastResult === 'gain',
-                        'text-destructive': lastResult === 'loss',
+                        'text-primary animate-pulse': lastResult === 'gain',
+                        'text-destructive animate-pulse': lastResult === 'loss',
                     }
                 )}>
                     $ {balance.toFixed(2)}

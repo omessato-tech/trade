@@ -85,7 +85,8 @@ const TradeChart = ({ data }: { data: any[] }) => {
       }
     },
     animation: {
-      duration: 300,
+      duration: 800,
+      easing: 'easeOutQuart' as const,
     },
     color: {
       up: 'hsl(var(--primary))',

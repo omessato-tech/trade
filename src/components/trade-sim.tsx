@@ -79,7 +79,7 @@ export default function TradeSim() {
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(updateData, 5000);
+    const interval = setInterval(updateData, 2000);
     return () => clearInterval(interval);
   }, [updateData]);
 

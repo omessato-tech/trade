@@ -9,7 +9,7 @@ import { enUS } from 'date-fns/locale';
 
 ChartJS.register(CategoryScale, LinearScale, Tooltip, Legend, TimeScale, CandlestickController, CandlestickElement);
 
-const TradeChart = ({ data }: { data: any[] }) => {
+const TradeChart = ({ data, visibleRange }: { data: any[], visibleRange?: number }) => {
 
   const chartData = {
     datasets: [{
@@ -18,6 +18,11 @@ const TradeChart = ({ data }: { data: any[] }) => {
       borderColor: 'rgba(0,0,0,0)',
     }]
   };
+  
+  const lastIndex = data.length - 1;
+  const startIndex = Math.max(0, lastIndex - (visibleRange ? visibleRange - 1 : data.length - 1));
+  const minTime = data.length > 0 ? data[startIndex].x : undefined;
+  const maxTime = data.length > 0 ? data[lastIndex].x : undefined;
 
   const options = {
     responsive: true,
@@ -65,7 +70,9 @@ const TradeChart = ({ data }: { data: any[] }) => {
           font: {
             family: 'Inter, sans-serif'
           }
-        }
+        },
+        min: minTime,
+        max: maxTime,
       },
       y: {
         grid: {
@@ -84,10 +91,7 @@ const TradeChart = ({ data }: { data: any[] }) => {
         position: 'right' as const
       }
     },
-    animation: {
-      duration: 800,
-      easing: 'easeOutQuart' as const,
-    },
+    animation: false,
     color: {
       up: 'hsl(var(--primary))',
       down: 'hsl(var(--destructive))',

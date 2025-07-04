@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import TradeChart from './trade-chart';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowUp, ArrowDown, ZoomIn, ZoomOut } from 'lucide-react';
 
 const generateRandomCandle = (lastCandle: any) => {
     const now = new Date();
@@ -24,6 +24,7 @@ export default function TradeSim() {
   const [chartData, setChartData] = useState<any[]>([]);
   const [marketData, setMarketData] = useState({ high: 0, low: Infinity, volume: 0 });
   const [activeTimeframe, setActiveTimeframe] = useState('15m');
+  const [zoomLevel, setZoomLevel] = useState(50);
 
   const gainSoundRef = useRef<HTMLAudioElement | null>(null);
   const lossSoundRef = useRef<HTMLAudioElement | null>(null);
@@ -66,11 +67,18 @@ export default function TradeSim() {
     setChartData(prevData => {
         const lastCandle = prevData.length > 0 ? prevData[prevData.length - 1] : null;
         const newCandle = generateRandomCandle(lastCandle);
-        const newData = [...prevData.slice(1), newCandle];
+        
+        const newData = [...prevData, newCandle];
+        if (newData.length > 200) {
+            newData.shift();
+        }
+
+        const high = Math.max(...newData.map(d => d.h));
+        const low = Math.min(...newData.map(d => d.l));
 
         setMarketData(prevMarketData => ({
-            high: Math.max(prevMarketData.high, newCandle.h),
-            low: Math.min(prevMarketData.low, newCandle.l),
+            high: high,
+            low: low,
             volume: prevMarketData.volume + Math.random() * 100,
         }));
 
@@ -79,7 +87,7 @@ export default function TradeSim() {
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(updateData, 2000);
+    const interval = setInterval(updateData, 500);
     return () => clearInterval(interval);
   }, [updateData]);
 
@@ -120,6 +128,14 @@ export default function TradeSim() {
   };
   
   const timeframes = ['15m', '1H', '4H', '1D'];
+
+  const handleZoomIn = () => {
+    setZoomLevel(prev => Math.max(15, prev - 5));
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel(prev => Math.min(chartData.length, prev + 5));
+  };
 
   return (
     <div className="w-full max-w-6xl mx-auto bg-background text-foreground font-body animate-fade-in">
@@ -166,9 +182,17 @@ export default function TradeSim() {
                     {tf}
                 </Button>
             ))}
+            <div className="flex items-center gap-1 ml-auto">
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleZoomIn} disabled={zoomLevel <= 15}>
+                    <ZoomIn className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleZoomOut} disabled={zoomLevel >= chartData.length}>
+                    <ZoomOut className="h-4 w-4" />
+                </Button>
+            </div>
         </div>
         <div className="h-64 md:h-96 w-full">
-            {chartData.length > 0 ? <TradeChart data={chartData} /> : <div className="flex items-center justify-center h-full text-muted-foreground">Carregando gráfico...</div>}
+            {chartData.length > 0 ? <TradeChart data={chartData} visibleRange={zoomLevel} /> : <div className="flex items-center justify-center h-full text-muted-foreground">Carregando gráfico...</div>}
         </div>
       </main>
 

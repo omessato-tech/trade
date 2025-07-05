@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from '@/lib/utils';
 import { 
     Menu, Plus, Briefcase, CalendarDays, Megaphone, PlayCircle, MessageCircle, MoreHorizontal, 
-    Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft, Timer
+    Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn
 } from 'lucide-react';
 
 const timeframes = ['1s', '1m', '5m', '1D', '1W', '1M'];
@@ -46,6 +46,7 @@ export default function TradeSim() {
   const [tradeDetails, setTradeDetails] = useState<{ type: 'buy' | 'sell'; entryPrice: number; } | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [profitState, setProfitState] = useState<'profit' | 'loss' | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(200);
   
   const chartDataRef = useRef<any[]>();
   chartDataRef.current = chartData;
@@ -189,6 +190,14 @@ export default function TradeSim() {
     setCountdown(30);
   };
   
+  const handleZoom = () => {
+    setZoomLevel(prev => {
+      if (prev === 200) return 100;
+      if (prev === 100) return 50;
+      return 200; // cycle back
+    });
+  };
+  
   const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].c : null;
 
   return (
@@ -242,7 +251,7 @@ export default function TradeSim() {
                 </div>
             )}
           <div className="flex-1 relative z-10">
-            {chartData.length > 0 ? <TradeChart data={chartData} entryLine={tradeDetails ? { price: tradeDetails.entryPrice, type: tradeDetails.type } : null} profitState={profitState} currentPrice={currentPrice} /> : <div className="flex items-center justify-center h-full text-muted-foreground">Carregando gráfico...</div>}
+            {chartData.length > 0 ? <TradeChart data={chartData} visibleRange={zoomLevel} entryLine={tradeDetails ? { price: tradeDetails.entryPrice, type: tradeDetails.type } : null} profitState={profitState} currentPrice={currentPrice} /> : <div className="flex items-center justify-center h-full text-muted-foreground">Carregando gráfico...</div>}
             {lastTradeResult && (
               <div
                   key={Date.now()}
@@ -267,6 +276,7 @@ export default function TradeSim() {
                 <Button variant="ghost" size="icon"><Info className="h-4 w-4" /></Button>
                 <Button variant="ghost" size="icon"><Bell className="h-4 w-4" /></Button>
                 <Button variant="ghost" size="icon"><CandlestickChart className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" onClick={handleZoom}><ZoomIn className="h-4 w-4" /></Button>
             </div>
             <div className="flex items-center gap-1 text-xs">
                 {timeframes.map(tf => (

@@ -212,7 +212,7 @@ export default function TradeSim() {
       <div className="flex-1 flex flex-col">
         {/* Chart Area */}
         <main className="flex-1 relative flex flex-col">
-            <div className="absolute inset-0 bg-[url('https://i.imgur.com/t3FX7Hf.jpeg')] bg-cover bg-center bg-no-repeat brightness-50 z-0"></div>
+            <div className="absolute inset-0 bg-[url('https://i.imgur.com/jCWkgEv.jpeg')] bg-cover bg-center bg-no-repeat brightness-50 z-0"></div>
             {tradeDetails && countdown !== null && (
                 <div className="absolute top-4 left-4 z-20 flex items-center gap-8 bg-black/50 px-4 py-2 rounded-lg backdrop-blur-sm font-mono">
                     <div className="text-left">

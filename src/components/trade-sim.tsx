@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input";
 import { cn } from '@/lib/utils';
 import { 
     Menu, Plus, Briefcase, CalendarDays, Megaphone, PlayCircle, MessageCircle, MoreHorizontal, 
-    Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn
+    Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, Sparkles
 } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 
 const timeframes = ['1s', '1m', '5m', '1D', '1W', '1M'];
 const timeframeDurations: { [key: string]: number } = {
@@ -44,10 +46,13 @@ export default function TradeSim() {
   const lossSoundRef = useRef<HTMLAudioElement | null>(null);
   const heartbeatSoundRef = useRef<HTMLAudioElement | null>(null);
 
-  const [tradeDetails, setTradeDetails] = useState<{ type: 'buy' | 'sell'; entryPrice: number; } | null>(null);
+  const [tradeDetails, setTradeDetails] = useState<{ type: 'buy' | 'sell'; entryPrice: number; amount: number; } | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [profitState, setProfitState] = useState<'profit' | 'loss' | null>(null);
   const [zoomLevel, setZoomLevel] = useState(200);
+
+  const [prediction, setPrediction] = useState<{ visible: boolean; type: 'buy' | 'sell'; amount: number; percentage: number; } | null>(null);
+  const [isGuaranteedWin, setIsGuaranteedWin] = useState(false);
   
   const chartDataRef = useRef<any[]>();
   chartDataRef.current = chartData;
@@ -57,17 +62,21 @@ export default function TradeSim() {
     if (!tradeDetails || !currentChartData || currentChartData.length === 0) return;
 
     const finalPrice = currentChartData[currentChartData.length - 1].c;
-    const { type, entryPrice } = tradeDetails;
+    const { type, entryPrice, amount } = tradeDetails;
 
     let isWin = false;
-    if (type === 'buy') {
-      isWin = finalPrice > entryPrice;
-    } else { // sell
-      isWin = finalPrice < entryPrice;
+    if (isGuaranteedWin) {
+        isWin = true;
+    } else {
+        if (type === 'buy') {
+          isWin = finalPrice > entryPrice;
+        } else { // sell
+          isWin = finalPrice < entryPrice;
+        }
     }
 
-    const winAmount = tradeAmount * 0.9;
-    const lossAmount = -tradeAmount;
+    const winAmount = amount * 0.9;
+    const lossAmount = -amount;
     const resultAmount = isWin ? winAmount : lossAmount;
     
     setLastTradeResult({
@@ -87,7 +96,8 @@ export default function TradeSim() {
     setBalance(prevBalance => prevBalance + resultAmount);
     setTradeDetails(null);
     setCountdown(null);
-  }, [tradeDetails, tradeAmount]);
+    setIsGuaranteedWin(false); // Reset the flag
+  }, [tradeDetails, isGuaranteedWin]);
 
 
   useEffect(() => {
@@ -188,6 +198,29 @@ export default function TradeSim() {
     }
 
   }, [chartData, tradeDetails]);
+  
+    // Prediction Card Timer
+    useEffect(() => {
+        const predictionInterval = setInterval(() => {
+            if (!tradeDetails && !prediction?.visible) {
+                const predictionType = Math.random() > 0.5 ? 'buy' : 'sell';
+                const predictionPercentage = Math.floor(Math.random() * 11) + 10; // 10% to 20%
+                const predictionAmount = (balance * predictionPercentage) / 100;
+
+                setPrediction({
+                    visible: true,
+                    type: predictionType,
+                    amount: predictionAmount,
+                    percentage: predictionPercentage,
+                });
+            } else if (prediction?.visible) {
+                // Hides the card if it's visible for too long
+                // setTimeout(() => setPrediction(null), 10000);
+            }
+        }, 30000); // 30 seconds
+
+        return () => clearInterval(predictionInterval);
+    }, [balance, tradeDetails, prediction]);
 
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -195,18 +228,29 @@ export default function TradeSim() {
     setTradeAmount(Math.max(1, value || 1));
   };
   
-  const handleTrade = (type: 'buy' | 'sell') => {
+  const handleTrade = (type: 'buy' | 'sell', amount: number, guaranteedWin = false) => {
     if (tradeDetails || chartData.length < 1) {
       return;
     }
     
-    if (balance < tradeAmount) {
+    if (balance < amount) {
       return;
+    }
+
+    if (guaranteedWin) {
+        setIsGuaranteedWin(true);
     }
     
     const entryPrice = chartData[chartData.length - 1].c;
-    setTradeDetails({ type, entryPrice });
+    setTradeDetails({ type, entryPrice, amount });
     setCountdown(30);
+  };
+
+  const handleFollowPrediction = () => {
+    if (!prediction || tradeDetails) return;
+    
+    handleTrade(prediction.type, prediction.amount, true);
+    setPrediction(null);
   };
   
   const handleZoom = () => {
@@ -253,7 +297,7 @@ export default function TradeSim() {
 
                     <div className="text-left">
                         <p className="text-white text-2xl font-bold">
-                            R$ {tradeAmount.toFixed(2)}
+                            R$ {tradeDetails.amount.toFixed(2)}
                         </p>
                         <p className="text-xs text-muted-foreground font-semibold tracking-wider uppercase mt-1">Total Investment</p>
                     </div>
@@ -263,12 +307,54 @@ export default function TradeSim() {
                             "text-2xl font-bold",
                             profitState === 'profit' ? 'text-primary' : 'text-destructive'
                         )}>
-                            {profitState === 'profit' ? '+' : '-'}R$ {(profitState === 'profit' ? tradeAmount * 0.9 : tradeAmount).toFixed(2)}
+                            {profitState === 'profit' ? '+' : '-'}R$ {(profitState === 'profit' ? tradeDetails.amount * 0.9 : tradeDetails.amount).toFixed(2)}
                         </p>
                         <p className="text-xs text-muted-foreground font-semibold tracking-wider uppercase mt-1">Expected Profit</p>
                     </div>
                 </div>
             )}
+            
+          {/* Prediction Card */}
+          {prediction?.visible && (
+              <Card className="absolute bottom-4 left-4 z-30 w-80 animate-fade-in bg-background/80 backdrop-blur-sm border-primary shadow-lg shadow-primary/20">
+                  <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-primary">
+                          <Sparkles className="h-6 w-6" />
+                          DETONA 7
+                      </CardTitle>
+                      <CardDescription>Oportunidade detectada!</CardDescription>
+                  </CardHeader>
+                  <CardContent className="text-center">
+                      <p className="text-lg font-bold">
+                          {`${prediction.percentage}% da banca`}
+                      </p>
+                      <p className="text-lg font-bold uppercase">
+                          {`${prediction.type === 'buy' ? 'COMPRE' : 'VENDA'} sem GALE`}
+                      </p>
+                  </CardContent>
+                  <CardFooter className="flex-col gap-2">
+                      <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                              <Button className="w-full bg-primary hover:bg-primary/90">SEGUIR PREVISÃO</Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                              <AlertDialogHeader>
+                                  <AlertDialogTitle>Confirmar Entrada?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                      Você está prestes a fazer uma entrada de {prediction.type === 'buy' ? 'COMPRA' : 'VENDA'} no valor de R$ {prediction.amount.toFixed(2)}. Esta ação é baseada na previsão "DETONA 7".
+                                  </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                  <AlertDialogCancel onClick={() => setPrediction(null)}>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={handleFollowPrediction}>Confirmar e Entrar</AlertDialogAction>
+                              </AlertDialogFooter>
+                          </AlertDialogContent>
+                      </AlertDialog>
+                      <Button variant="outline" className="w-full" onClick={() => setPrediction(null)}>Ignorar</Button>
+                  </CardFooter>
+              </Card>
+          )}
+
           <div className="flex-1 relative z-10">
             {chartData.length > 0 ? <TradeChart data={chartData} visibleRange={zoomLevel} entryLine={tradeDetails ? { price: tradeDetails.entryPrice, type: tradeDetails.type } : null} profitState={profitState} currentPrice={currentPrice} /> : <div className="flex items-center justify-center h-full text-muted-foreground">Carregando gráfico...</div>}
             {lastTradeResult && (
@@ -337,7 +423,7 @@ export default function TradeSim() {
         </div>
 
         <div className="flex flex-col gap-3 mt-auto">
-            <Button size="lg" className="h-auto bg-primary hover:bg-primary/90 text-primary-foreground py-2 disabled:opacity-50" onClick={() => handleTrade('buy')} disabled={!!tradeDetails}>
+            <Button size="lg" className="h-auto bg-primary hover:bg-primary/90 text-primary-foreground py-2 disabled:opacity-50" onClick={() => handleTrade('buy', tradeAmount)} disabled={!!tradeDetails}>
                 <div className="flex items-center justify-between w-full">
                     <ArrowUpRight className="h-6 w-6" />
                     <div className="flex flex-col items-end">
@@ -350,7 +436,7 @@ export default function TradeSim() {
                 <p className="text-muted-foreground">SPREAD</p>
                 <p className="text-white">92.2</p>
             </div>
-            <Button size="lg" className="h-auto bg-destructive hover:bg-destructive/90 text-destructive-foreground py-2 disabled:opacity-50" onClick={() => handleTrade('sell')} disabled={!!tradeDetails}>
+            <Button size="lg" className="h-auto bg-destructive hover:bg-destructive/90 text-destructive-foreground py-2 disabled:opacity-50" onClick={() => handleTrade('sell', tradeAmount)} disabled={!!tradeDetails}>
                  <div className="flex items-center justify-between w-full">
                     <ArrowDownLeft className="h-6 w-6" />
                     <div className="flex flex-col items-end">

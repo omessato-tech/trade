@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from '@/lib/utils';
 import { 
     Menu, Plus, Briefcase, CalendarDays, Megaphone, PlayCircle, MessageCircle, MoreHorizontal, 
-    Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, Sparkles
+    Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, Sparkles, LayoutGrid, Bitcoin, X
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
@@ -23,32 +23,43 @@ const timeframeDurations: { [key: string]: number } = {
   '1M': 2592000000,
 };
 
-const generateRandomCandle = (lastCandle: any, direction: 'buy' | 'sell' | null) => {
+const currencyPairs = [
+  { id: 'EUR/USD', name: 'EUR/USD', type: 'Binary', basePrice: 1.0850, precision: 5, flag1: '🇪🇺', flag2: '🇺🇸' },
+  { id: 'EUR/JPY', name: 'EUR/JPY', type: 'Binary', basePrice: 169.50, precision: 3, flag1: '🇪🇺', flag2: '🇯🇵' },
+  { id: 'Bitcoin', name: 'Bitcoin', type: 'Crypto', basePrice: 65000, precision: 2, icon: Bitcoin },
+  { id: 'CHF/JPY', name: 'CHF/JPY', type: 'Forex', basePrice: 175.20, precision: 3, flag1: '🇨🇭', flag2: '🇯🇵' },
+];
+
+const generateRandomCandle = (lastCandle: any, direction: 'buy' | 'sell' | null, basePrice: number) => {
     const now = new Date();
-    // Prices for USD/EUR
-    const open = lastCandle ? lastCandle.c : 1.0850 + (Math.random() - 0.5) * 0.001;
+    const volatilityFactor = 0.00015; // To control the size of candles relative to price
+    
+    const open = lastCandle ? lastCandle.c : basePrice + (Math.random() - 0.5) * (basePrice * volatilityFactor);
     
     let close;
+    const baseRandom = Math.random();
     if (direction === 'buy') {
-        // Biased upward movement, but with natural variance. It can sometimes go down.
-        close = open + (Math.random() - 0.45) * 0.0015;
+        // Biased upward movement
+        close = open + (baseRandom - 0.45) * (basePrice * volatilityFactor);
     } else if (direction === 'sell') {
-        // Biased downward movement, but with natural variance. It can sometimes go up.
-        close = open + (Math.random() - 0.55) * 0.0015;
+        // Biased downward movement
+        close = open + (baseRandom - 0.55) * (basePrice * volatilityFactor);
     } else {
         // Default random movement
-        close = open + (Math.random() - 0.5) * 0.0015;
+        close = open + (baseRandom - 0.5) * (basePrice * volatilityFactor);
     }
 
-    const high = Math.max(open, close) + Math.random() * 0.0005;
-    const low = Math.min(open, close) - Math.random() * 0.0005;
+    const high = Math.max(open, close) + Math.random() * (basePrice * volatilityFactor * 0.5);
+    const low = Math.min(open, close) - Math.random() * (basePrice * volatilityFactor * 0.5);
     return { x: now.getTime(), o: open, h: high, l: low, c: close };
 };
 
 
 export default function TradeSim() {
   const [balance, setBalance] = useState(1000);
-  const [chartData, setChartData] = useState<any[]>([]);
+  const [activePairId, setActivePairId] = useState('EUR/USD');
+  const [openPairs, setOpenPairs] = useState(['EUR/USD', 'EUR/JPY', 'Bitcoin', 'CHF/JPY']);
+  const [chartData, setChartData] = useState<{ [key: string]: any[] }>({});
   const [activeTimeframe, setActiveTimeframe] = useState('1m');
   const [tradeAmount, setTradeAmount] = useState(4);
   const [leverage, setLeverage] = useState(300);
@@ -58,7 +69,7 @@ export default function TradeSim() {
   const lossSoundRef = useRef<HTMLAudioElement | null>(null);
   const heartbeatSoundRef = useRef<HTMLAudioElement | null>(null);
 
-  const [tradeDetails, setTradeDetails] = useState<{ type: 'buy' | 'sell'; entryPrice: number; amount: number; } | null>(null);
+  const [tradeDetails, setTradeDetails] = useState<{ pairId: string, type: 'buy' | 'sell'; entryPrice: number; amount: number; } | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [profitState, setProfitState] = useState<'profit' | 'loss' | null>(null);
   const [zoomLevel, setZoomLevel] = useState(200);
@@ -66,12 +77,16 @@ export default function TradeSim() {
   const [prediction, setPrediction] = useState<{ visible: boolean; type: 'buy' | 'sell'; amount: number; percentage: number; } | null>(null);
   const [predictionDirection, setPredictionDirection] = useState<'buy' | 'sell' | null>(null);
   
-  const chartDataRef = useRef<any[]>();
+  const chartDataRef = useRef<{ [key: string]: any[] }>();
   chartDataRef.current = chartData;
 
+  const activePair = currencyPairs.find(p => p.id === activePairId)!;
+
   const resolveTrade = useCallback(() => {
-    const currentChartData = chartDataRef.current;
-    if (!tradeDetails || !currentChartData || currentChartData.length === 0) return;
+    if (!tradeDetails) return;
+
+    const currentChartData = chartDataRef.current?.[tradeDetails.pairId];
+    if (!currentChartData || currentChartData.length === 0) return;
 
     const finalPrice = currentChartData[currentChartData.length - 1].c;
     const { type, entryPrice, amount } = tradeDetails;
@@ -117,32 +132,36 @@ export default function TradeSim() {
     heartbeatSoundRef.current = heartbeatSound;
   }, []);
 
-  // Initial chart data generation
+  // Chart data generation for active pair
   useEffect(() => {
-    let initialData: any[] = [];
-    let lastCandle: any = null;
-    for(let i=0; i < 200; i++) {
-        const candle = generateRandomCandle(lastCandle, null);
-        candle.x = new Date().getTime() - (200-i) * 1000; // Generate based on seconds for consistency
+    if (!chartData[activePairId]) {
+      let initialData: any[] = [];
+      let lastCandle: any = null;
+      for (let i = 0; i < 200; i++) {
+        const candle = generateRandomCandle(lastCandle, null, activePair.basePrice);
+        candle.x = new Date().getTime() - (200 - i) * 1000;
         initialData.push(candle);
         lastCandle = candle;
+      }
+      setChartData(prev => ({ ...prev, [activePairId]: initialData }));
     }
-    setChartData(initialData);
-  }, []);
+  }, [activePairId, activePair.basePrice, chartData]);
 
   const updateData = useCallback(() => {
     setChartData(prevData => {
-        if (prevData.length === 0) return [];
-        const lastCandle = prevData[prevData.length - 1];
-        const newCandle = generateRandomCandle(lastCandle, predictionDirection);
+        const currentData = prevData[activePairId] || [];
+        if (currentData.length === 0) return prevData;
+
+        const lastCandle = currentData[currentData.length - 1];
+        const newCandle = generateRandomCandle(lastCandle, predictionDirection, activePair.basePrice);
         
-        const newData = [...prevData, newCandle];
+        const newData = [...currentData, newCandle];
         if (newData.length > 500) {
             newData.shift();
         }
-        return newData;
+        return { ...prevData, [activePairId]: newData };
     });
-  }, [predictionDirection]);
+  }, [predictionDirection, activePairId, activePair.basePrice]);
 
   // Update chart data on an interval
   useEffect(() => {
@@ -174,7 +193,7 @@ export default function TradeSim() {
   
   // Profit/Loss state checker
   useEffect(() => {
-    if (!tradeDetails || chartData.length === 0) {
+    if (!tradeDetails || !chartData[tradeDetails.pairId] || chartData[tradeDetails.pairId].length === 0) {
       setProfitState(null);
       if (heartbeatSoundRef.current) {
         heartbeatSoundRef.current.pause();
@@ -182,8 +201,9 @@ export default function TradeSim() {
       }
       return;
     }
-
-    const currentPrice = chartData[chartData.length - 1].c;
+    
+    const currentPairChartData = chartData[tradeDetails.pairId];
+    const currentPrice = currentPairChartData[currentPairChartData.length - 1].c;
     const { type, entryPrice } = tradeDetails;
 
     let isProfit = false;
@@ -237,7 +257,8 @@ export default function TradeSim() {
   };
   
   const handleTrade = (type: 'buy' | 'sell', amount: number) => {
-    if (tradeDetails || chartData.length < 1) {
+    const currentChart = chartData[activePairId];
+    if (tradeDetails || !currentChart || currentChart.length < 1) {
       return;
     }
     
@@ -245,8 +266,8 @@ export default function TradeSim() {
       return;
     }
     
-    const entryPrice = chartData[chartData.length - 1].c;
-    setTradeDetails({ type, entryPrice, amount });
+    const entryPrice = currentChart[currentChart.length - 1].c;
+    setTradeDetails({ pairId: activePairId, type, entryPrice, amount });
     setCountdown(30);
   };
 
@@ -265,8 +286,17 @@ export default function TradeSim() {
       return 200; // cycle back
     });
   };
-  
-  const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].c : null;
+
+  const handlePairChange = (pairId: string) => {
+    if (tradeDetails) {
+        // Maybe show a toast that you can't switch during a trade
+        return;
+    }
+    setActivePairId(pairId);
+  };
+
+  const currentChart = chartData[activePairId] || [];
+  const currentPrice = currentChart.length > 0 ? currentChart[currentChart.length - 1].c : null;
 
   return (
     <div className="flex h-screen w-full bg-background text-sm text-foreground font-body">
@@ -287,10 +317,49 @@ export default function TradeSim() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
+        {/* Currency Pair Selector */}
+        <div className="flex-none flex items-center gap-1 p-1 bg-[#1e222d] border-b border-border">
+            <Button variant="ghost" size="icon" className="border border-border/50 h-10 w-10">
+                <LayoutGrid className="h-5 w-5" />
+            </Button>
+            {openPairs.map(pairId => {
+                const pair = currencyPairs.find(p => p.id === pairId);
+                if (!pair) return null;
+                const isActive = activePairId === pairId;
+                return (
+                    <div
+                        key={pair.id}
+                        onClick={() => handlePairChange(pair.id)}
+                        className={cn(
+                            "relative flex items-center gap-2 p-2 rounded-md cursor-pointer h-10",
+                            isActive ? "bg-background/50 border-b-2 border-primary" : "hover:bg-background/20"
+                        )}
+                    >
+                        {pair.icon ? <pair.icon className="h-5 w-5 text-orange-400" /> : (
+                            <div className="flex items-center">
+                                <span className="text-xl">{pair.flag1}</span>
+                                <span className="text-xl -ml-2">{pair.flag2}</span>
+                            </div>
+                        )}
+                        <div className="flex flex-col items-start">
+                            <span className="text-xs font-semibold">{pair.name}</span>
+                            <span className="text-xs text-muted-foreground">{pair.type}</span>
+                        </div>
+                        <Button variant="ghost" size="icon" className="absolute top-0 right-0 h-4 w-4 text-muted-foreground hover:text-foreground">
+                            <X className="h-3 w-3" />
+                        </Button>
+                    </div>
+                )
+            })}
+            <Button variant="ghost" size="icon" className="border border-border/50 h-10 w-10">
+                <Plus className="h-5 w-5" />
+            </Button>
+        </div>
+        
         {/* Chart Area */}
         <main className="flex-1 relative flex flex-col">
-            <div className="absolute inset-0 bg-[url('https://i.imgur.com/jCWkgEv.jpeg')] bg-cover bg-center bg-no-repeat brightness-50 z-0"></div>
-            {tradeDetails && countdown !== null && (
+            <div className="absolute inset-0 bg-[url('https://imgur.com/jCWkgEv')] bg-cover bg-center bg-no-repeat brightness-50 z-0"></div>
+            {tradeDetails && tradeDetails.pairId === activePairId && countdown !== null && (
                 <div className="absolute top-4 left-4 z-20 flex items-center gap-8 bg-black/50 px-4 py-2 rounded-lg backdrop-blur-sm font-mono">
                     <div className="text-left">
                         <div className="text-destructive text-2xl font-bold flex items-center gap-2">
@@ -327,7 +396,7 @@ export default function TradeSim() {
                           <Sparkles className="h-6 w-6" />
                           DETONA 7
                       </CardTitle>
-                      <CardDescription>Oportunidade detectada!</CardDescription>
+                      <CardDescription>Oportunidade detectada em {activePair.name}!</CardDescription>
                   </CardHeader>
                   <CardContent className="text-center">
                       <p className="text-lg font-bold">
@@ -346,7 +415,7 @@ export default function TradeSim() {
                               <AlertDialogHeader>
                                   <AlertDialogTitle>Confirmar Entrada?</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                      Você está prestes a fazer uma entrada de {prediction.type === 'buy' ? 'COMPRA' : 'VENDA'} no valor de R$ {prediction.amount.toFixed(2)}. Esta ação é baseada na previsão "DETONA 7".
+                                      Você está prestes a fazer uma entrada de {prediction.type === 'buy' ? 'COMPRA' : 'VENDA'} em {activePair.name} no valor de R$ {prediction.amount.toFixed(2)}. Esta ação é baseada na previsão "DETONA 7".
                                   </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
@@ -361,7 +430,17 @@ export default function TradeSim() {
           )}
 
           <div className="flex-1 relative z-10">
-            {chartData.length > 0 ? <TradeChart data={chartData} visibleRange={zoomLevel} entryLine={tradeDetails ? { price: tradeDetails.entryPrice, type: tradeDetails.type } : null} profitState={profitState} currentPrice={currentPrice} /> : <div className="flex items-center justify-center h-full text-muted-foreground">Carregando gráfico...</div>}
+            {currentChart.length > 0 ? (
+                <TradeChart 
+                    data={currentChart} 
+                    visibleRange={zoomLevel} 
+                    entryLine={tradeDetails && tradeDetails.pairId === activePairId ? { price: tradeDetails.entryPrice, type: tradeDetails.type } : null} 
+                    profitState={profitState} 
+                    currentPrice={currentPrice} 
+                />
+            ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">Carregando gráfico...</div>
+            )}
             {lastTradeResult && (
               <div
                   key={Date.now()}
@@ -433,7 +512,7 @@ export default function TradeSim() {
                     <ArrowUpRight className="h-6 w-6" />
                     <div className="flex flex-col items-end">
                         <span className="font-bold text-base">COMPRAR</span>
-                        <span className="text-xs">{chartData.length > 0 ? chartData[chartData.length - 1].c.toFixed(5) : '0.00000'}</span>
+                        <span className="text-xs">{currentPrice ? currentPrice.toFixed(activePair.precision) : '0.00000'}</span>
                     </div>
                 </div>
             </Button>
@@ -446,7 +525,7 @@ export default function TradeSim() {
                     <ArrowDownLeft className="h-6 w-6" />
                     <div className="flex flex-col items-end">
                         <span className="font-bold text-base">VENDER</span>
-                        <span className="text-xs">{chartData.length > 0 ? chartData[chartData.length - 1].c.toFixed(5) : '0.00000'}</span>
+                        <span className="text-xs">{currentPrice ? currentPrice.toFixed(activePair.precision) : '0.00000'}</span>
                     </div>
                 </div>
             </Button>

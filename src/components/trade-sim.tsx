@@ -67,7 +67,7 @@ export default function TradeSim() {
   const [profitState, setProfitState] = useState<'profit' | 'loss' | null>(null);
   const [zoomLevel, setZoomLevel] = useState(200);
 
-  const [prediction, setPrediction] = useState<{ visible: boolean; type: 'buy' | 'sell'; amount: number; percentage: number; } | null>(null);
+  const [prediction, setPrediction] = useState<{ visible: boolean; type: 'buy' | 'sell'; amount: number; percentage: number; countdown: number; } | null>(null);
   const [predictionDirection, setPredictionDirection] = useState<'buy' | 'sell' | null>(null);
   
   const chartDataRef = useRef<{ [key: string]: any[] }>();
@@ -270,15 +270,29 @@ export default function TradeSim() {
                     type: predictionType,
                     amount: predictionAmount,
                     percentage: predictionPercentage,
+                    countdown: 5,
                 });
-            } else if (prediction?.visible) {
-                // Hides the card if it's visible for too long
-                // setTimeout(() => setPrediction(null), 10000);
             }
         }, 30000); // 30 seconds
 
         return () => clearInterval(predictionInterval);
-    }, [balance, tradeDetails, prediction]);
+    }, [balance, tradeDetails, prediction?.visible]);
+
+    // Prediction Countdown Logic
+    useEffect(() => {
+        if (!prediction?.visible) return;
+
+        if (prediction.countdown <= 0) {
+            setPrediction(null);
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            setPrediction(p => (p ? { ...p, countdown: p.countdown - 1 } : null));
+        }, 1000);
+
+        return () => clearTimeout(timer);
+    }, [prediction]);
 
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -430,7 +444,7 @@ export default function TradeSim() {
                     <CardHeader className="p-3">
                         <CardTitle className="flex items-center justify-between gap-2 text-primary text-base">
                             <span>DETONA 7</span>
-                            <span className="text-xs font-normal text-muted-foreground">agora</span>
+                            <span className="text-xs font-normal text-muted-foreground">{prediction.countdown}s</span>
                         </CardTitle>
                         <CardDescription className="text-xs">Oportunidade em {activePair.name}!</CardDescription>
                     </CardHeader>

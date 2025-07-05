@@ -43,8 +43,47 @@ export default function TradeSim() {
   const gainSoundRef = useRef<HTMLAudioElement | null>(null);
   const lossSoundRef = useRef<HTMLAudioElement | null>(null);
 
+  const [tradeDetails, setTradeDetails] = useState<{ type: 'buy' | 'sell'; entryPrice: number; } | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  
+  const resolveTrade = useCallback(() => {
+    if (!tradeDetails || chartData.length === 0) return;
+
+    const finalPrice = chartData[chartData.length - 1].c;
+    const { type, entryPrice } = tradeDetails;
+
+    let isWin = false;
+    if (type === 'buy') {
+      isWin = finalPrice > entryPrice;
+    } else { // sell
+      isWin = finalPrice < entryPrice;
+    }
+
+    const winAmount = tradeAmount * 0.9;
+    const lossAmount = -tradeAmount;
+    const resultAmount = isWin ? winAmount : lossAmount;
+    
+    setLastTradeResult({
+        amount: Math.abs(resultAmount),
+        type: isWin ? 'gain' : 'loss'
+    });
+    setTimeout(() => {
+        setLastTradeResult(null);
+    }, 2000);
+
+    if (isWin) {
+        gainSoundRef.current?.play().catch(error => console.error("Audio play failed", error));
+    } else {
+        lossSoundRef.current?.play().catch(error => console.error("Audio play failed", error));
+    }
+
+    setBalance(prevBalance => prevBalance + resultAmount);
+    setTradeDetails(null);
+    setCountdown(null);
+  }, [tradeDetails, chartData, tradeAmount]);
+
+
   useEffect(() => {
-    // Note: dl=1 is important for direct audio playback from Dropbox.
     gainSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/g8kuyoj92dse42x809px8/money-soundfx.mp3?rlkey=yrvyfsscwyuvvwkhz1db8pnsc&st=fwvi92jq&dl=1');
     lossSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/422avpg6mmh10gxzlgmtq/app-error.mp3?rlkey=eecjn7ft9w71oerkjvbpjnkl0&st=hngh4cba&dl=1');
   }, []);
@@ -53,15 +92,14 @@ export default function TradeSim() {
   useEffect(() => {
     let initialData: any[] = [];
     let lastCandle: any = null;
-    const duration = timeframeDurations[activeTimeframe] || 60000;
     for(let i=0; i < 200; i++) {
         const candle = generateRandomCandle(lastCandle);
-        candle.x = new Date().getTime() - (200-i) * duration;
+        candle.x = new Date().getTime() - (200-i) * 1000; // Generate based on seconds for consistency
         initialData.push(candle);
         lastCandle = candle;
     }
     setChartData(initialData);
-  }, [activeTimeframe]);
+  }, []);
 
   const updateData = useCallback(() => {
     setChartData(prevData => {
@@ -79,10 +117,9 @@ export default function TradeSim() {
 
   // Update chart data on an interval
   useEffect(() => {
-    const duration = timeframeDurations[activeTimeframe] || 60000;
-    const interval = setInterval(updateData, duration);
+    const interval = setInterval(updateData, 1000); // Update every second
     return () => clearInterval(interval);
-  }, [activeTimeframe, updateData]);
+  }, [updateData]);
 
   // Update current time display
   useEffect(() => {
@@ -90,40 +127,40 @@ export default function TradeSim() {
     return () => clearInterval(timer);
   }, []);
 
+  // Countdown timer logic
+  useEffect(() => {
+    if (countdown === null) return;
+
+    if (countdown === 0) {
+      resolveTrade();
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setCountdown(prev => (prev !== null ? prev - 1 : null));
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [countdown, resolveTrade]);
+
+
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.valueAsNumber;
     setTradeAmount(Math.max(1, value || 1));
   };
-
+  
   const handleTrade = (type: 'buy' | 'sell') => {
-    if (balance < tradeAmount) {
-      // Not enough balance, maybe show a toast in the future
+    if (tradeDetails || chartData.length < 1) {
       return;
     }
     
-    // Simplified random win/loss logic
-    const isWin = Math.random() > 0.45; 
-    const winAmount = tradeAmount * 0.9; // 90% return on win
-    const lossAmount = -tradeAmount;
-
-    const resultAmount = isWin ? winAmount : lossAmount;
-    
-    setLastTradeResult({
-        amount: Math.abs(resultAmount),
-        type: isWin ? 'gain' : 'loss'
-    });
-    setTimeout(() => {
-        setLastTradeResult(null);
-    }, 2000); // Animation duration
-
-
-    if (isWin) {
-        gainSoundRef.current?.play().catch(error => console.error("Audio play failed", error));
-    } else {
-        lossSoundRef.current?.play().catch(error => console.error("Audio play failed", error));
+    if (balance < tradeAmount) {
+      return;
     }
-
-    setBalance(prevBalance => prevBalance + resultAmount);
+    
+    const entryPrice = chartData[chartData.length - 1].c;
+    setTradeDetails({ type, entryPrice });
+    setCountdown(30);
   };
 
   return (
@@ -147,6 +184,12 @@ export default function TradeSim() {
       <div className="flex-1 flex flex-col">
         {/* Chart Area */}
         <main className="flex-1 relative bg-card flex flex-col">
+           {tradeDetails && countdown !== null && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-black/50 p-3 rounded-lg backdrop-blur-sm text-center">
+                <p className="text-xs text-muted-foreground">TEMPO RESTANTE</p>
+                <p className="text-2xl font-bold text-white">{countdown}s</p>
+            </div>
+          )}
           <div className="flex-1 relative">
             <div className="absolute top-4 left-4 z-10 bg-black/50 p-3 rounded-lg backdrop-blur-sm">
               <p className="text-xs text-muted-foreground">MAIORES MUDANÇAS DE HOJE</p>
@@ -221,7 +264,7 @@ export default function TradeSim() {
         </div>
 
         <div className="flex flex-col gap-3 mt-auto">
-            <Button size="lg" className="h-auto bg-primary hover:bg-primary/90 text-primary-foreground py-2" onClick={() => handleTrade('buy')}>
+            <Button size="lg" className="h-auto bg-primary hover:bg-primary/90 text-primary-foreground py-2 disabled:opacity-50" onClick={() => handleTrade('buy')} disabled={!!tradeDetails}>
                 <div className="flex items-center justify-between w-full">
                     <ArrowUpRight className="h-6 w-6" />
                     <div className="flex flex-col items-end">
@@ -234,7 +277,7 @@ export default function TradeSim() {
                 <p className="text-muted-foreground">SPREAD</p>
                 <p className="text-white">92.2</p>
             </div>
-            <Button size="lg" className="h-auto bg-destructive hover:bg-destructive/90 text-destructive-foreground py-2" onClick={() => handleTrade('sell')}>
+            <Button size="lg" className="h-auto bg-destructive hover:bg-destructive/90 text-destructive-foreground py-2 disabled:opacity-50" onClick={() => handleTrade('sell')} disabled={!!tradeDetails}>
                  <div className="flex items-center justify-between w-full">
                     <ArrowDownLeft className="h-6 w-6" />
                     <div className="flex flex-col items-end">

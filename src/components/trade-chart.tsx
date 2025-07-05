@@ -66,13 +66,13 @@ const TradeChart = ({ data, visibleRange, entryLine, profitState, currentPrice }
       type: 'line' as const,
       yMin: currentPrice,
       yMax: currentPrice,
-      borderColor: 'hsl(var(--accent-foreground) / 0.5)',
+      borderColor: 'rgba(255, 255, 255, 0.7)',
       borderWidth: 1.5,
       label: {
         content: currentPrice.toFixed(5),
         display: true,
         position: 'end',
-        backgroundColor: 'hsl(var(--accent-foreground) / 0.8)',
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
         color: 'hsl(var(--background))',
         font: {
           family: 'Inter, sans-serif',

@@ -188,6 +188,8 @@ export default function TradeSim() {
     setTradeDetails({ type, entryPrice });
     setCountdown(30);
   };
+  
+  const currentPrice = chartData.length > 0 ? chartData[chartData.length - 1].c : null;
 
   return (
     <div className="flex h-screen w-full bg-background text-sm text-foreground font-body">
@@ -224,7 +226,7 @@ export default function TradeSim() {
                 <p className="text-primary text-sm font-bold">+3.42%</p>
               </div>
             </div>
-            {chartData.length > 0 ? <TradeChart data={chartData} entryLine={tradeDetails ? { price: tradeDetails.entryPrice, type: tradeDetails.type } : null} profitState={profitState} /> : <div className="flex items-center justify-center h-full text-muted-foreground">Carregando gráfico...</div>}
+            {chartData.length > 0 ? <TradeChart data={chartData} entryLine={tradeDetails ? { price: tradeDetails.entryPrice, type: tradeDetails.type } : null} profitState={profitState} currentPrice={currentPrice} /> : <div className="flex items-center justify-center h-full text-muted-foreground">Carregando gráfico...</div>}
             {lastTradeResult && (
               <div
                   key={Date.now()}

@@ -10,11 +10,12 @@ import { enUS } from 'date-fns/locale';
 
 ChartJS.register(CategoryScale, LinearScale, Tooltip, Legend, TimeScale, CandlestickController, CandlestickElement, annotationPlugin);
 
-const TradeChart = ({ data, visibleRange, entryLine, profitState }: { 
+const TradeChart = ({ data, visibleRange, entryLine, profitState, currentPrice }: { 
   data: any[], 
   visibleRange?: number, 
   entryLine: { price: number, type: 'buy' | 'sell' } | null,
-  profitState: 'profit' | 'loss' | null
+  profitState: 'profit' | 'loss' | null,
+  currentPrice: number | null
 }) => {
 
   const chartData = {
@@ -37,6 +38,52 @@ const TradeChart = ({ data, visibleRange, entryLine, profitState }: {
     // Fallback for initial render
     return entryLine.type === 'buy' ? 'hsl(var(--primary))' : 'hsl(var(--destructive))';
   };
+  
+  const chartAnnotations: any = {};
+  
+  if (entryLine) {
+    chartAnnotations.entryLine = {
+      type: 'line' as const,
+      yMin: entryLine.price,
+      yMax: entryLine.price,
+      borderColor: getLineColor(),
+      borderWidth: 2,
+      borderDash: [6, 6],
+      label: {
+        content: `Entrada: ${entryLine.price.toFixed(5)}`,
+        display: true,
+        position: 'start',
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        font: {
+          family: 'Inter, sans-serif'
+        }
+      }
+    };
+  }
+
+  if (currentPrice) {
+    chartAnnotations.currentPriceLine = {
+      type: 'line' as const,
+      yMin: currentPrice,
+      yMax: currentPrice,
+      borderColor: 'hsl(var(--accent-foreground) / 0.5)',
+      borderWidth: 1.5,
+      label: {
+        content: currentPrice.toFixed(5),
+        display: true,
+        position: 'end',
+        backgroundColor: 'hsl(var(--accent-foreground) / 0.8)',
+        color: 'hsl(var(--background))',
+        font: {
+          family: 'Inter, sans-serif',
+          size: 10
+        },
+        padding: 4,
+        yAdjust: -12
+      }
+    };
+  }
+
 
   const options = {
     responsive: true,
@@ -57,25 +104,7 @@ const TradeChart = ({ data, visibleRange, entryLine, profitState }: {
         }
       },
       annotation: {
-        annotations: entryLine ? {
-          entryLine: {
-            type: 'line' as const,
-            yMin: entryLine.price,
-            yMax: entryLine.price,
-            borderColor: getLineColor(),
-            borderWidth: 2,
-            borderDash: [6, 6],
-            label: {
-              content: entryLine.price.toFixed(5),
-              display: true,
-              position: 'end',
-              backgroundColor: 'rgba(0,0,0,0.6)',
-              font: {
-                family: 'Inter, sans-serif'
-              }
-            }
-          }
-        } : {}
+        annotations: chartAnnotations,
       }
     },
     scales: {

@@ -38,16 +38,24 @@ const generateRandomCandle = (lastCandle: any, direction: 'buy' | 'sell' | null,
     
     let close;
     const baseRandom = Math.random();
+
+    // The core of the price movement logic
+    let movement = (baseRandom - 0.5); // -0.5 to 0.5
+
     if (direction === 'buy') {
-        // Biased upward movement
-        close = open + (baseRandom - 0.45) * (basePrice * volatilityFactor);
+        // More likely to go up. We shift the random distribution upwards.
+        // A value > 0 means price up, < 0 means price down.
+        // Math.random() is 0 to 1. By subtracting 0.45, we get -0.45 to 0.55.
+        // This gives a higher chance of a positive result.
+        movement = (Math.random() - 0.45);
     } else if (direction === 'sell') {
-        // Biased downward movement
-        close = open + (baseRandom - 0.55) * (basePrice * volatilityFactor);
-    } else {
-        // Default random movement
-        close = open + (baseRandom - 0.5) * (basePrice * volatilityFactor);
+        // More likely to go down. We shift the random distribution downwards.
+        // By subtracting 0.55, we get -0.55 to 0.45.
+        // This gives a higher chance of a negative result.
+        movement = (Math.random() - 0.55);
     }
+    
+    close = open + movement * (basePrice * volatilityFactor);
 
     const high = Math.max(open, close) + Math.random() * (basePrice * volatilityFactor * 0.5);
     const low = Math.min(open, close) - Math.random() * (basePrice * volatilityFactor * 0.5);
@@ -299,9 +307,9 @@ export default function TradeSim() {
   const currentPrice = currentChart.length > 0 ? currentChart[currentChart.length - 1].c : null;
 
   return (
-    <div className="flex h-screen w-full bg-background text-sm text-foreground font-body">
+    <div className="flex md:flex-row flex-col h-screen w-full bg-background text-sm text-foreground font-body">
       {/* Left Sidebar */}
-      <aside className="w-16 flex-none flex flex-col items-center space-y-2 bg-[#1e222d] py-4 border-r border-border">
+      <aside className="w-16 hidden md:flex flex-none flex-col items-center space-y-2 bg-[#1e222d] py-4 border-r border-border">
         <Button variant="ghost" size="icon"><Menu className="h-5 w-5" /></Button>
         <Button variant="ghost" size="icon"><Plus className="h-5 w-5" /></Button>
         <Separator className="!bg-border/50 my-2" />
@@ -316,9 +324,9 @@ export default function TradeSim() {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Currency Pair Selector */}
-        <div className="flex-none flex items-center gap-1 p-1 bg-[#1e222d] border-b border-border">
+        <div className="flex-none flex items-center gap-1 p-1 bg-[#1e222d] border-b border-border overflow-x-auto no-scrollbar">
             <Button variant="ghost" size="icon" className="border border-border/50 h-10 w-10">
                 <LayoutGrid className="h-5 w-5" />
             </Button>
@@ -331,7 +339,7 @@ export default function TradeSim() {
                         key={pair.id}
                         onClick={() => handlePairChange(pair.id)}
                         className={cn(
-                            "relative flex items-center gap-2 p-2 rounded-md cursor-pointer h-10",
+                            "relative flex items-center gap-2 p-2 rounded-md cursor-pointer h-10 shrink-0",
                             isActive ? "bg-background/50 border-b-2 border-primary" : "hover:bg-background/20"
                         )}
                     >
@@ -358,19 +366,19 @@ export default function TradeSim() {
         
         {/* Chart Area */}
         <main className="flex-1 relative flex flex-col">
-            <div className="absolute inset-0 bg-[url('https://imgur.com/jCWkgEv')] bg-cover bg-center bg-no-repeat brightness-50 z-0"></div>
+            <div className="absolute inset-0 bg-[url('https://imgur.com/jCWkgEv.png')] bg-cover bg-center bg-no-repeat brightness-50 z-0"></div>
             {tradeDetails && tradeDetails.pairId === activePairId && countdown !== null && (
-                <div className="absolute top-4 left-4 z-20 flex items-center gap-8 bg-black/50 px-4 py-2 rounded-lg backdrop-blur-sm font-mono">
+                <div className="absolute top-2 left-2 md:top-4 md:left-4 z-20 flex flex-col md:flex-row items-start md:items-center gap-2 md:gap-8 bg-black/50 px-2 py-1 md:px-4 md:py-2 rounded-lg backdrop-blur-sm font-mono">
                     <div className="text-left">
-                        <div className="text-destructive text-2xl font-bold flex items-center gap-2">
-                            <Timer className="h-6 w-6" />
+                        <div className="text-destructive text-xl md:text-2xl font-bold flex items-center gap-2">
+                            <Timer className="h-5 w-5 md:h-6 md:w-6" />
                             <span>{`00:${String(countdown).padStart(2, '0')}`}</span>
                         </div>
                         <p className="text-xs text-destructive/90 font-semibold tracking-wider uppercase mt-1">Expiration Time</p>
                     </div>
 
                     <div className="text-left">
-                        <p className="text-white text-2xl font-bold">
+                        <p className="text-white text-xl md:text-2xl font-bold">
                             R$ {tradeDetails.amount.toFixed(2)}
                         </p>
                         <p className="text-xs text-muted-foreground font-semibold tracking-wider uppercase mt-1">Total Investment</p>
@@ -378,7 +386,7 @@ export default function TradeSim() {
 
                     <div className="text-left">
                         <p className={cn(
-                            "text-2xl font-bold",
+                            "text-xl md:text-2xl font-bold",
                             profitState === 'profit' ? 'text-primary' : 'text-destructive'
                         )}>
                             {profitState === 'profit' ? '+' : '-'}R$ {(profitState === 'profit' ? tradeDetails.amount * 0.9 : tradeDetails.amount).toFixed(2)}
@@ -390,7 +398,7 @@ export default function TradeSim() {
             
           {/* Prediction Card */}
           {prediction?.visible && (
-              <Card className="absolute bottom-4 left-4 z-30 w-80 animate-fade-in bg-background/80 backdrop-blur-sm border-primary shadow-lg shadow-primary/20">
+              <Card className="absolute bottom-4 z-30 w-full max-w-[calc(100%-2rem)] left-1/2 -translate-x-1/2 md:w-80 md:left-4 md:translate-x-0 animate-fade-in bg-background/80 backdrop-blur-sm border-primary shadow-lg shadow-primary/20">
                   <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-primary">
                           <Sparkles className="h-6 w-6" />
@@ -460,7 +468,7 @@ export default function TradeSim() {
           </div>
         </main>
         {/* Bottom Toolbar */}
-        <footer className="flex-none flex items-center justify-between p-2 bg-[#1e222d] border-t border-border">
+        <footer className="hidden md:flex flex-none items-center justify-between p-2 bg-[#1e222d] border-t border-border">
             <div className="flex items-center gap-2">
                 <Button variant="ghost" size="icon"><Info className="h-4 w-4" /></Button>
                 <Button variant="ghost" size="icon"><Bell className="h-4 w-4" /></Button>
@@ -478,9 +486,9 @@ export default function TradeSim() {
         </footer>
       </div>
       
-      {/* Right Sidebar */}
-      <aside className="w-72 flex-none bg-[#1e222d] p-4 border-l border-border flex flex-col gap-4">
-        <div className="flex justify-between items-center">
+      {/* Right Sidebar / Mobile Bottom Bar */}
+      <aside className="w-full md:w-72 md:flex-none bg-[#1e222d] p-3 md:p-4 border-t md:border-t-0 md:border-l border-border flex flex-col gap-3 md:gap-4">
+        <div className="hidden md:flex justify-between items-center">
             <div>
                 <p className="text-primary font-bold text-lg">R$ {balance.toFixed(2)}</p>
                 <p className="text-xs text-muted-foreground">TOTAL R$ {balance.toFixed(2)}</p>
@@ -489,46 +497,48 @@ export default function TradeSim() {
                 + DEPOSITAR
             </Button>
         </div>
-        <Separator className="!bg-border/50" />
+        <Separator className="!bg-border/50 hidden md:block" />
         
-        <div className="flex flex-col gap-3 text-sm">
-            <div className="flex justify-between items-center">
-                <label htmlFor="invest-amount" className="text-muted-foreground">INVEST.</label>
-                <Input id="invest-amount" type="number" value={tradeAmount} onChange={handleAmountChange} className="w-24 bg-input border-border text-right text-destructive font-bold" />
+        <div className="flex flex-row md:flex-col items-center md:items-stretch gap-3 text-sm">
+            <div className="flex flex-1 md:flex-initial flex-col gap-3">
+                <div className="flex justify-between items-center">
+                    <label htmlFor="invest-amount" className="text-muted-foreground">INVEST.</label>
+                    <Input id="invest-amount" type="number" value={tradeAmount} onChange={handleAmountChange} className="w-24 bg-input border-border text-right text-destructive font-bold" />
+                </div>
+                <div className="hidden md:flex justify-between items-center">
+                    <p className="text-muted-foreground">ALAV.</p>
+                    <p className="text-white font-bold">x{leverage}</p>
+                </div>
+                <div className="hidden md:flex justify-between items-center">
+                    <p className="text-muted-foreground">TOTAL</p>
+                    <p className="text-white font-bold">R$ {(tradeAmount * leverage).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+                </div>
             </div>
-            <div className="flex justify-between items-center">
-                <p className="text-muted-foreground">ALAV.</p>
-                <p className="text-white font-bold">x{leverage}</p>
-            </div>
-             <div className="flex justify-between items-center">
-                <p className="text-muted-foreground">TOTAL</p>
-                <p className="text-white font-bold">R$ {(tradeAmount * leverage).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
-            </div>
-        </div>
 
-        <div className="flex flex-col gap-3 mt-auto">
-            <Button size="lg" className="h-auto bg-primary hover:bg-primary/90 text-primary-foreground py-2 disabled:opacity-50" onClick={() => handleTrade('buy', tradeAmount)} disabled={!!tradeDetails}>
-                <div className="flex items-center justify-between w-full">
-                    <ArrowUpRight className="h-6 w-6" />
-                    <div className="flex flex-col items-end">
-                        <span className="font-bold text-base">COMPRAR</span>
-                        <span className="text-xs">{currentPrice ? currentPrice.toFixed(activePair.precision) : '0.00000'}</span>
+            <div className="flex flex-1 md:flex-initial flex-row md:flex-col gap-3 md:mt-auto">
+                <Button size="lg" className="h-auto flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2 disabled:opacity-50" onClick={() => handleTrade('buy', tradeAmount)} disabled={!!tradeDetails}>
+                    <div className="flex items-center justify-between w-full">
+                        <ArrowUpRight className="h-6 w-6" />
+                        <div className="flex flex-col items-end">
+                            <span className="font-bold text-base">COMPRAR</span>
+                            <span className="text-xs">{currentPrice ? currentPrice.toFixed(activePair.precision) : '0.00000'}</span>
+                        </div>
                     </div>
+                </Button>
+                <div className="hidden md:flex justify-between items-center text-xs px-2">
+                    <p className="text-muted-foreground">SPREAD</p>
+                    <p className="text-white">92.2</p>
                 </div>
-            </Button>
-            <div className="flex justify-between items-center text-xs px-2">
-                <p className="text-muted-foreground">SPREAD</p>
-                <p className="text-white">92.2</p>
+                <Button size="lg" className="h-auto flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground py-2 disabled:opacity-50" onClick={() => handleTrade('sell', tradeAmount)} disabled={!!tradeDetails}>
+                    <div className="flex items-center justify-between w-full">
+                        <ArrowDownLeft className="h-6 w-6" />
+                        <div className="flex flex-col items-end">
+                            <span className="font-bold text-base">VENDER</span>
+                            <span className="text-xs">{currentPrice ? currentPrice.toFixed(activePair.precision) : '0.00000'}</span>
+                        </div>
+                    </div>
+                </Button>
             </div>
-            <Button size="lg" className="h-auto bg-destructive hover:bg-destructive/90 text-destructive-foreground py-2 disabled:opacity-50" onClick={() => handleTrade('sell', tradeAmount)} disabled={!!tradeDetails}>
-                 <div className="flex items-center justify-between w-full">
-                    <ArrowDownLeft className="h-6 w-6" />
-                    <div className="flex flex-col items-end">
-                        <span className="font-bold text-base">VENDER</span>
-                        <span className="text-xs">{currentPrice ? currentPrice.toFixed(activePair.precision) : '0.00000'}</span>
-                    </div>
-                </div>
-            </Button>
         </div>
       </aside>
     </div>

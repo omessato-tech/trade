@@ -42,6 +42,7 @@ export default function TradeSim() {
   const [lastTradeResult, setLastTradeResult] = useState<{ amount: number; type: 'gain' | 'loss' } | null>(null);
   const gainSoundRef = useRef<HTMLAudioElement | null>(null);
   const lossSoundRef = useRef<HTMLAudioElement | null>(null);
+  const heartbeatSoundRef = useRef<HTMLAudioElement | null>(null);
 
   const [tradeDetails, setTradeDetails] = useState<{ type: 'buy' | 'sell'; entryPrice: number; } | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -92,6 +93,10 @@ export default function TradeSim() {
   useEffect(() => {
     gainSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/g8kuyoj92dse42x809px8/money-soundfx.mp3?rlkey=yrvyfsscwyuvvwkhz1db8pnsc&st=fwvi92jq&dl=1');
     lossSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/422avpg6mmh10gxzlgmtq/app-error.mp3?rlkey=eecjn7ft9w71oerkjvbpjnkl0&st=hngh4cba&dl=1');
+    
+    const heartbeatSound = new Audio('https://www.dropbox.com/scl/fi/o6ot3qm4qs33tnxt0l89b/Heart-Rate-Monitor.mov.mp3?rlkey=49vwh340mvpogypuv8lx3lsqn&st=lh31tk6d&dl=1');
+    heartbeatSound.loop = true;
+    heartbeatSoundRef.current = heartbeatSound;
   }, []);
 
   // Initial chart data generation
@@ -153,6 +158,10 @@ export default function TradeSim() {
   useEffect(() => {
     if (!tradeDetails || chartData.length === 0) {
       setProfitState(null);
+      if (heartbeatSoundRef.current) {
+        heartbeatSoundRef.current.pause();
+        heartbeatSoundRef.current.currentTime = 0;
+      }
       return;
     }
 
@@ -165,8 +174,18 @@ export default function TradeSim() {
     } else { // sell
       isProfit = currentPrice < entryPrice;
     }
+    
+    const newProfitState = isProfit ? 'profit' : 'loss';
+    setProfitState(newProfitState);
 
-    setProfitState(isProfit ? 'profit' : 'loss');
+    if (newProfitState === 'loss') {
+        heartbeatSoundRef.current?.play().catch(error => console.error("Heartbeat audio play failed", error));
+    } else { // profit
+        if (heartbeatSoundRef.current) {
+            heartbeatSoundRef.current.pause();
+            heartbeatSoundRef.current.currentTime = 0;
+        }
+    }
 
   }, [chartData, tradeDetails]);
 

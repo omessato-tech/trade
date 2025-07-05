@@ -13,14 +13,12 @@ import {
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 
-const timeframes = ['1s', '1m', '5m', '1D', '1W', '1M'];
+const timeframes = ['5s', '30s', '1m', '5m'];
 const timeframeDurations: { [key: string]: number } = {
-  '1s': 1000,
+  '5s': 5000,
+  '30s': 30000,
   '1m': 60000,
   '5m': 300000,
-  '1D': 86400000,
-  '1W': 604800000,
-  '1M': 2592000000,
 };
 
 const currencyPairs = [
@@ -30,36 +28,22 @@ const currencyPairs = [
   { id: 'CHF/JPY', name: 'CHF/JPY', type: 'Forex', basePrice: 175.20, precision: 3, flag1: '🇨🇭', flag2: '🇯🇵' },
 ];
 
-const generateRandomCandle = (lastCandle: any, direction: 'buy' | 'sell' | null, basePrice: number) => {
-    const now = new Date();
-    const volatilityFactor = 0.00015; // To control the size of candles relative to price
+const generateRandomPriceMovement = (currentPrice: number, direction: 'buy' | 'sell' | null, basePrice: number): number => {
+    const volatilityFactor = 0.00015;
     
-    const open = lastCandle ? lastCandle.c : basePrice + (Math.random() - 0.5) * (basePrice * volatilityFactor);
-    
-    let close;
-    const baseRandom = Math.random();
-
-    // The core of the price movement logic
-    let movement = (baseRandom - 0.5); // -0.5 to 0.5
-
+    let movement;
     if (direction === 'buy') {
         // More likely to go up. We shift the random distribution upwards.
-        // A value > 0 means price up, < 0 means price down.
-        // Math.random() is 0 to 1. By subtracting 0.45, we get -0.45 to 0.55.
-        // This gives a higher chance of a positive result.
         movement = (Math.random() - 0.45);
     } else if (direction === 'sell') {
         // More likely to go down. We shift the random distribution downwards.
-        // By subtracting 0.55, we get -0.55 to 0.45.
-        // This gives a higher chance of a negative result.
         movement = (Math.random() - 0.55);
+    } else {
+        movement = (Math.random() - 0.5);
     }
     
-    close = open + movement * (basePrice * volatilityFactor);
-
-    const high = Math.max(open, close) + Math.random() * (basePrice * volatilityFactor * 0.5);
-    const low = Math.min(open, close) - Math.random() * (basePrice * volatilityFactor * 0.5);
-    return { x: now.getTime(), o: open, h: high, l: low, c: close };
+    const priceChange = movement * (basePrice * volatilityFactor);
+    return currentPrice + priceChange;
 };
 
 
@@ -68,7 +52,7 @@ export default function TradeSim() {
   const [activePairId, setActivePairId] = useState('EUR/USD');
   const [openPairs, setOpenPairs] = useState(['EUR/USD', 'EUR/JPY', 'Bitcoin', 'CHF/JPY']);
   const [chartData, setChartData] = useState<{ [key: string]: any[] }>({});
-  const [activeTimeframe, setActiveTimeframe] = useState('1m');
+  const [activeTimeframe, setActiveTimeframe] = useState('5s');
   const [tradeAmount, setTradeAmount] = useState(4);
   const [leverage, setLeverage] = useState(300);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -140,36 +124,73 @@ export default function TradeSim() {
     heartbeatSoundRef.current = heartbeatSound;
   }, []);
 
-  // Chart data generation for active pair
+  // Chart data generation
   useEffect(() => {
-    if (!chartData[activePairId]) {
-      let initialData: any[] = [];
-      let lastCandle: any = null;
-      for (let i = 0; i < 200; i++) {
-        const candle = generateRandomCandle(lastCandle, null, activePair.basePrice);
-        candle.x = new Date().getTime() - (200 - i) * 1000;
+    const timeframeMillis = timeframeDurations[activeTimeframe];
+
+    let initialData: any[] = [];
+    const now = new Date().getTime();
+    const startTime = Math.floor(now / timeframeMillis) * timeframeMillis - (200 * timeframeMillis);
+    
+    let lastCandle: any = null;
+    for (let i = 0; i < 200; i++) {
+        const candleTime = startTime + i * timeframeMillis;
+
+        const open = lastCandle ? lastCandle.c : activePair.basePrice + (Math.random() - 0.5) * (activePair.basePrice * 0.0005);
+        const close = open + (Math.random() - 0.5) * (activePair.basePrice * 0.0005);
+        const high = Math.max(open, close) + Math.random() * (activePair.basePrice * 0.0005 * 0.5);
+        const low = Math.min(open, close) - Math.random() * (activePair.basePrice * 0.0005 * 0.5);
+
+        const candle = { x: candleTime, o: open, h: high, l: low, c: close };
         initialData.push(candle);
         lastCandle = candle;
-      }
-      setChartData(prev => ({ ...prev, [activePairId]: initialData }));
     }
-  }, [activePairId, activePair.basePrice]);
+    setChartData(prev => ({ ...prev, [activePairId]: initialData }));
+    
+  }, [activePairId, activeTimeframe, activePair.basePrice]);
 
   const updateData = useCallback(() => {
     setChartData(prevData => {
-        const currentData = prevData[activePairId] || [];
-        if (currentData.length === 0) return prevData;
-
-        const lastCandle = currentData[currentData.length - 1];
-        const newCandle = generateRandomCandle(lastCandle, predictionDirection, activePair.basePrice);
-        
-        const newData = [...currentData, newCandle];
-        if (newData.length > 500) {
-            newData.shift();
+        const currentPairData = prevData[activePairId];
+        if (!currentPairData || currentPairData.length === 0) {
+            return prevData;
         }
-        return { ...prevData, [activePairId]: newData };
+
+        const timeframeMillis = timeframeDurations[activeTimeframe];
+        const lastCandle = currentPairData[currentPairData.length - 1];
+        
+        const newPrice = generateRandomPriceMovement(lastCandle.c, predictionDirection, activePair.basePrice);
+
+        const now = new Date().getTime();
+
+        if (now >= lastCandle.x + timeframeMillis) {
+            const newCandle = {
+                x: lastCandle.x + timeframeMillis,
+                o: lastCandle.c,
+                h: Math.max(lastCandle.c, newPrice),
+                l: Math.min(lastCandle.c, newPrice),
+                c: newPrice
+            };
+            
+            const newData = [...currentPairData, newCandle];
+            if (newData.length > 500) {
+                newData.shift();
+            }
+            return { ...prevData, [activePairId]: newData };
+        } else {
+            const updatedLastCandle = {
+                ...lastCandle,
+                c: newPrice,
+                h: Math.max(lastCandle.h, newPrice),
+                l: Math.min(lastCandle.l, newPrice),
+            };
+            
+            const newData = [...currentPairData.slice(0, -1), updatedLastCandle];
+            return { ...prevData, [activePairId]: newData };
+        }
     });
-  }, [predictionDirection, activePairId, activePair.basePrice]);
+  }, [activePairId, activeTimeframe, predictionDirection, activePair.basePrice]);
+
 
   // Update chart data on an interval
   useEffect(() => {

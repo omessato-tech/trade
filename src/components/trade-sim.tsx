@@ -39,6 +39,7 @@ export default function TradeSim() {
   const [tradeAmount, setTradeAmount] = useState(4);
   const [leverage, setLeverage] = useState(300);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [lastTradeResult, setLastTradeResult] = useState<{ amount: number; type: 'gain' | 'loss' } | null>(null);
   const gainSoundRef = useRef<HTMLAudioElement | null>(null);
   const lossSoundRef = useRef<HTMLAudioElement | null>(null);
 
@@ -106,6 +107,15 @@ export default function TradeSim() {
     const lossAmount = -tradeAmount;
 
     const resultAmount = isWin ? winAmount : lossAmount;
+    
+    setLastTradeResult({
+        amount: Math.abs(resultAmount),
+        type: isWin ? 'gain' : 'loss'
+    });
+    setTimeout(() => {
+        setLastTradeResult(null);
+    }, 2000); // Animation duration
+
 
     if (isWin) {
         gainSoundRef.current?.play().catch(error => console.error("Audio play failed", error));
@@ -146,6 +156,22 @@ export default function TradeSim() {
               </div>
             </div>
             {chartData.length > 0 ? <TradeChart data={chartData} /> : <div className="flex items-center justify-center h-full text-muted-foreground">Carregando gráfico...</div>}
+            {lastTradeResult && (
+              <div
+                  key={Date.now()}
+                  className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none"
+              >
+                  <div
+                      className={cn(
+                          'text-5xl font-bold animate-result-pop',
+                          lastTradeResult.type === 'gain' ? 'text-primary' : 'text-destructive'
+                      )}
+                      style={{ textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}
+                  >
+                      {lastTradeResult.type === 'gain' ? '+' : '-'}R$ {lastTradeResult.amount.toFixed(2)}
+                  </div>
+              </div>
+            )}
           </div>
         </main>
         {/* Bottom Toolbar */}

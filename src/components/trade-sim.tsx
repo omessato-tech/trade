@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from '@/lib/utils';
 import { 
     Menu, Plus, Briefcase, CalendarDays, Megaphone, PlayCircle, MessageCircle, MoreHorizontal, 
-    Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft 
+    Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft, Timer
 } from 'lucide-react';
 
 const timeframes = ['1s', '1m', '5m', '1D', '1W', '1M'];
@@ -212,20 +212,35 @@ export default function TradeSim() {
       <div className="flex-1 flex flex-col">
         {/* Chart Area */}
         <main className="flex-1 relative bg-card flex flex-col">
-           {tradeDetails && countdown !== null && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-black/50 p-3 rounded-lg backdrop-blur-sm text-center">
-                <p className="text-xs text-muted-foreground">TEMPO RESTANTE</p>
-                <p className="text-2xl font-bold text-white">{countdown}s</p>
-            </div>
-          )}
+            {tradeDetails && countdown !== null && (
+                <div className="absolute top-4 left-4 z-20 flex items-center gap-8 bg-black/50 px-4 py-2 rounded-lg backdrop-blur-sm font-mono">
+                    <div className="text-left">
+                        <div className="text-destructive text-2xl font-bold flex items-center gap-2">
+                            <Timer className="h-6 w-6" />
+                            <span>{`00:${String(countdown).padStart(2, '0')}`}</span>
+                        </div>
+                        <p className="text-xs text-destructive/90 font-semibold tracking-wider uppercase mt-1">Expiration Time</p>
+                    </div>
+
+                    <div className="text-left">
+                        <p className="text-white text-2xl font-bold">
+                            R$ {tradeAmount.toFixed(2)}
+                        </p>
+                        <p className="text-xs text-muted-foreground font-semibold tracking-wider uppercase mt-1">Total Investment</p>
+                    </div>
+
+                    <div className="text-left">
+                        <p className={cn(
+                            "text-2xl font-bold",
+                            profitState === 'profit' ? 'text-primary' : 'text-destructive'
+                        )}>
+                            {profitState === 'profit' ? '+' : '-'}R$ {(profitState === 'profit' ? tradeAmount * 0.9 : tradeAmount).toFixed(2)}
+                        </p>
+                        <p className="text-xs text-muted-foreground font-semibold tracking-wider uppercase mt-1">Expected Profit</p>
+                    </div>
+                </div>
+            )}
           <div className="flex-1 relative">
-            <div className="absolute top-4 left-4 z-10 bg-black/50 p-3 rounded-lg backdrop-blur-sm">
-              <p className="text-xs text-muted-foreground">MAIORES MUDANÇAS DE HOJE</p>
-              <div className="flex items-center gap-2 mt-1">
-                <p className="text-white font-bold">ZCash</p>
-                <p className="text-primary text-sm font-bold">+3.42%</p>
-              </div>
-            </div>
             {chartData.length > 0 ? <TradeChart data={chartData} entryLine={tradeDetails ? { price: tradeDetails.entryPrice, type: tradeDetails.type } : null} profitState={profitState} currentPrice={currentPrice} /> : <div className="flex items-center justify-center h-full text-muted-foreground">Carregando gráfico...</div>}
             {lastTradeResult && (
               <div

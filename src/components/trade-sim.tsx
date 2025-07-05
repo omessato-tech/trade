@@ -145,7 +145,7 @@ export default function TradeSim() {
       }
       setChartData(prev => ({ ...prev, [activePairId]: initialData }));
     }
-  }, [activePairId, activePair.basePrice, chartData]);
+  }, [activePairId, activePair.basePrice]);
 
   const updateData = useCallback(() => {
     setChartData(prevData => {

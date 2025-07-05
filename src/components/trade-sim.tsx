@@ -45,6 +45,7 @@ export default function TradeSim() {
 
   const [tradeDetails, setTradeDetails] = useState<{ type: 'buy' | 'sell'; entryPrice: number; } | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [profitState, setProfitState] = useState<'profit' | 'loss' | null>(null);
   
   const chartDataRef = useRef<any[]>();
   chartDataRef.current = chartData;
@@ -146,6 +147,27 @@ export default function TradeSim() {
 
     return () => clearTimeout(timer);
   }, [countdown, resolveTrade]);
+  
+  // Profit/Loss state checker
+  useEffect(() => {
+    if (!tradeDetails || chartData.length === 0) {
+      setProfitState(null);
+      return;
+    }
+
+    const currentPrice = chartData[chartData.length - 1].c;
+    const { type, entryPrice } = tradeDetails;
+
+    let isProfit = false;
+    if (type === 'buy') {
+      isProfit = currentPrice > entryPrice;
+    } else { // sell
+      isProfit = currentPrice < entryPrice;
+    }
+
+    setProfitState(isProfit ? 'profit' : 'loss');
+
+  }, [chartData, tradeDetails]);
 
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -202,7 +224,7 @@ export default function TradeSim() {
                 <p className="text-primary text-sm font-bold">+3.42%</p>
               </div>
             </div>
-            {chartData.length > 0 ? <TradeChart data={chartData} entryLine={tradeDetails ? { price: tradeDetails.entryPrice, type: tradeDetails.type } : null} /> : <div className="flex items-center justify-center h-full text-muted-foreground">Carregando gráfico...</div>}
+            {chartData.length > 0 ? <TradeChart data={chartData} entryLine={tradeDetails ? { price: tradeDetails.entryPrice, type: tradeDetails.type } : null} profitState={profitState} /> : <div className="flex items-center justify-center h-full text-muted-foreground">Carregando gráfico...</div>}
             {lastTradeResult && (
               <div
                   key={Date.now()}

@@ -10,7 +10,12 @@ import { enUS } from 'date-fns/locale';
 
 ChartJS.register(CategoryScale, LinearScale, Tooltip, Legend, TimeScale, CandlestickController, CandlestickElement, annotationPlugin);
 
-const TradeChart = ({ data, visibleRange, entryLine }: { data: any[], visibleRange?: number, entryLine: { price: number, type: 'buy' | 'sell' } | null }) => {
+const TradeChart = ({ data, visibleRange, entryLine, profitState }: { 
+  data: any[], 
+  visibleRange?: number, 
+  entryLine: { price: number, type: 'buy' | 'sell' } | null,
+  profitState: 'profit' | 'loss' | null
+}) => {
 
   const chartData = {
     datasets: [{
@@ -24,6 +29,14 @@ const TradeChart = ({ data, visibleRange, entryLine }: { data: any[], visibleRan
   const startIndex = Math.max(0, lastIndex - (visibleRange ? visibleRange - 1 : data.length - 1));
   const minTime = data.length > 0 ? data[startIndex].x : undefined;
   const maxTime = data.length > 0 ? data[lastIndex].x : undefined;
+
+  const getLineColor = () => {
+    if (!entryLine) return 'transparent';
+    if (profitState === 'profit') return 'hsl(var(--primary))';
+    if (profitState === 'loss') return 'hsl(var(--destructive))';
+    // Fallback for initial render
+    return entryLine.type === 'buy' ? 'hsl(var(--primary))' : 'hsl(var(--destructive))';
+  };
 
   const options = {
     responsive: true,
@@ -49,7 +62,7 @@ const TradeChart = ({ data, visibleRange, entryLine }: { data: any[], visibleRan
             type: 'line' as const,
             yMin: entryLine.price,
             yMax: entryLine.price,
-            borderColor: entryLine.type === 'buy' ? 'hsl(var(--primary))' : 'hsl(var(--destructive))',
+            borderColor: getLineColor(),
             borderWidth: 2,
             borderDash: [6, 6],
             label: {

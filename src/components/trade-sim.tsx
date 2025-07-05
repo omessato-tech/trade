@@ -30,11 +30,11 @@ const generateRandomCandle = (lastCandle: any, direction: 'buy' | 'sell' | null)
     
     let close;
     if (direction === 'buy') {
-        // Consistently move up
-        close = open + (Math.random() * 0.0001 + 0.00005);
+        // Biased upward movement, but with natural variance. It can sometimes go down.
+        close = open + (Math.random() - 0.45) * 0.0015;
     } else if (direction === 'sell') {
-        // Consistently move down
-        close = open - (Math.random() * 0.0001 + 0.00005);
+        // Biased downward movement, but with natural variance. It can sometimes go up.
+        close = open + (Math.random() - 0.55) * 0.0015;
     } else {
         // Default random movement
         close = open + (Math.random() - 0.5) * 0.0015;

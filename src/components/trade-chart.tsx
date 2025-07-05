@@ -2,14 +2,15 @@
 
 import React from 'react';
 import { Chart as ChartJS, CategoryScale, LinearScale, Tooltip, Legend, TimeScale } from 'chart.js';
+import annotationPlugin from 'chartjs-plugin-annotation';
 import { Chart } from 'react-chartjs-2';
 import { CandlestickController, CandlestickElement } from 'chartjs-chart-financial';
 import 'chartjs-adapter-date-fns';
 import { enUS } from 'date-fns/locale';
 
-ChartJS.register(CategoryScale, LinearScale, Tooltip, Legend, TimeScale, CandlestickController, CandlestickElement);
+ChartJS.register(CategoryScale, LinearScale, Tooltip, Legend, TimeScale, CandlestickController, CandlestickElement, annotationPlugin);
 
-const TradeChart = ({ data, visibleRange }: { data: any[], visibleRange?: number }) => {
+const TradeChart = ({ data, visibleRange, entryLine }: { data: any[], visibleRange?: number, entryLine: { price: number, type: 'buy' | 'sell' } | null }) => {
 
   const chartData = {
     datasets: [{
@@ -41,6 +42,27 @@ const TradeChart = ({ data, visibleRange }: { data: any[], visibleRange?: number
         titleFont: {
           family: 'Inter, sans-serif'
         }
+      },
+      annotation: {
+        annotations: entryLine ? {
+          entryLine: {
+            type: 'line' as const,
+            yMin: entryLine.price,
+            yMax: entryLine.price,
+            borderColor: entryLine.type === 'buy' ? 'hsl(var(--primary))' : 'hsl(var(--destructive))',
+            borderWidth: 2,
+            borderDash: [6, 6],
+            label: {
+              content: entryLine.price.toFixed(5),
+              display: true,
+              position: 'end',
+              backgroundColor: 'rgba(0,0,0,0.6)',
+              font: {
+                family: 'Inter, sans-serif'
+              }
+            }
+          }
+        } : {}
       }
     },
     scales: {

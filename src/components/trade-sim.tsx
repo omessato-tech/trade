@@ -40,10 +40,12 @@ export default function TradeSim() {
   const [leverage, setLeverage] = useState(300);
   const [currentTime, setCurrentTime] = useState(new Date());
   const gainSoundRef = useRef<HTMLAudioElement | null>(null);
+  const lossSoundRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     // Note: dl=1 is important for direct audio playback from Dropbox.
     gainSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/g8kuyoj92dse42x809px8/money-soundfx.mp3?rlkey=yrvyfsscwyuvvwkhz1db8pnsc&st=fwvi92jq&dl=1');
+    lossSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/422avpg6mmh10gxzlgmtq/app-error.mp3?rlkey=eecjn7ft9w71oerkjvbpjnkl0&st=ivkop3t3&dl=0');
   }, []);
 
   // Initial chart data generation
@@ -107,6 +109,8 @@ export default function TradeSim() {
 
     if (isWin) {
         gainSoundRef.current?.play().catch(error => console.error("Audio play failed", error));
+    } else {
+        lossSoundRef.current?.play().catch(error => console.error("Audio play failed", error));
     }
 
     setBalance(prevBalance => prevBalance + resultAmount);

@@ -23,11 +23,23 @@ const timeframeDurations: { [key: string]: number } = {
   '1M': 2592000000,
 };
 
-const generateRandomCandle = (lastCandle: any) => {
+const generateRandomCandle = (lastCandle: any, direction: 'buy' | 'sell' | null) => {
     const now = new Date();
     // Prices for USD/EUR
     const open = lastCandle ? lastCandle.c : 1.0850 + (Math.random() - 0.5) * 0.001;
-    const close = open + (Math.random() - 0.5) * 0.0015;
+    
+    let close;
+    if (direction === 'buy') {
+        // Consistently move up
+        close = open + (Math.random() * 0.0001 + 0.00005);
+    } else if (direction === 'sell') {
+        // Consistently move down
+        close = open - (Math.random() * 0.0001 + 0.00005);
+    } else {
+        // Default random movement
+        close = open + (Math.random() - 0.5) * 0.0015;
+    }
+
     const high = Math.max(open, close) + Math.random() * 0.0005;
     const low = Math.min(open, close) - Math.random() * 0.0005;
     return { x: now.getTime(), o: open, h: high, l: low, c: close };
@@ -52,7 +64,7 @@ export default function TradeSim() {
   const [zoomLevel, setZoomLevel] = useState(200);
 
   const [prediction, setPrediction] = useState<{ visible: boolean; type: 'buy' | 'sell'; amount: number; percentage: number; } | null>(null);
-  const [isGuaranteedWin, setIsGuaranteedWin] = useState(false);
+  const [predictionDirection, setPredictionDirection] = useState<'buy' | 'sell' | null>(null);
   
   const chartDataRef = useRef<any[]>();
   chartDataRef.current = chartData;
@@ -65,14 +77,10 @@ export default function TradeSim() {
     const { type, entryPrice, amount } = tradeDetails;
 
     let isWin = false;
-    if (isGuaranteedWin) {
-        isWin = true;
-    } else {
-        if (type === 'buy') {
-          isWin = finalPrice > entryPrice;
-        } else { // sell
-          isWin = finalPrice < entryPrice;
-        }
+    if (type === 'buy') {
+      isWin = finalPrice > entryPrice;
+    } else { // sell
+      isWin = finalPrice < entryPrice;
     }
 
     const winAmount = amount * 0.9;
@@ -96,8 +104,8 @@ export default function TradeSim() {
     setBalance(prevBalance => prevBalance + resultAmount);
     setTradeDetails(null);
     setCountdown(null);
-    setIsGuaranteedWin(false); // Reset the flag
-  }, [tradeDetails, isGuaranteedWin]);
+    setPredictionDirection(null);
+  }, [tradeDetails]);
 
 
   useEffect(() => {
@@ -114,7 +122,7 @@ export default function TradeSim() {
     let initialData: any[] = [];
     let lastCandle: any = null;
     for(let i=0; i < 200; i++) {
-        const candle = generateRandomCandle(lastCandle);
+        const candle = generateRandomCandle(lastCandle, null);
         candle.x = new Date().getTime() - (200-i) * 1000; // Generate based on seconds for consistency
         initialData.push(candle);
         lastCandle = candle;
@@ -126,7 +134,7 @@ export default function TradeSim() {
     setChartData(prevData => {
         if (prevData.length === 0) return [];
         const lastCandle = prevData[prevData.length - 1];
-        const newCandle = generateRandomCandle(lastCandle);
+        const newCandle = generateRandomCandle(lastCandle, predictionDirection);
         
         const newData = [...prevData, newCandle];
         if (newData.length > 500) {
@@ -134,7 +142,7 @@ export default function TradeSim() {
         }
         return newData;
     });
-  }, []);
+  }, [predictionDirection]);
 
   // Update chart data on an interval
   useEffect(() => {
@@ -228,17 +236,13 @@ export default function TradeSim() {
     setTradeAmount(Math.max(1, value || 1));
   };
   
-  const handleTrade = (type: 'buy' | 'sell', amount: number, guaranteedWin = false) => {
+  const handleTrade = (type: 'buy' | 'sell', amount: number) => {
     if (tradeDetails || chartData.length < 1) {
       return;
     }
     
     if (balance < amount) {
       return;
-    }
-
-    if (guaranteedWin) {
-        setIsGuaranteedWin(true);
     }
     
     const entryPrice = chartData[chartData.length - 1].c;
@@ -249,7 +253,8 @@ export default function TradeSim() {
   const handleFollowPrediction = () => {
     if (!prediction || tradeDetails) return;
     
-    handleTrade(prediction.type, prediction.amount, true);
+    handleTrade(prediction.type, prediction.amount);
+    setPredictionDirection(prediction.type);
     setPrediction(null);
   };
   

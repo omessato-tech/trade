@@ -46,10 +46,14 @@ export default function TradeSim() {
   const [tradeDetails, setTradeDetails] = useState<{ type: 'buy' | 'sell'; entryPrice: number; } | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   
-  const resolveTrade = useCallback(() => {
-    if (!tradeDetails || chartData.length === 0) return;
+  const chartDataRef = useRef<any[]>();
+  chartDataRef.current = chartData;
 
-    const finalPrice = chartData[chartData.length - 1].c;
+  const resolveTrade = useCallback(() => {
+    const currentChartData = chartDataRef.current;
+    if (!tradeDetails || !currentChartData || currentChartData.length === 0) return;
+
+    const finalPrice = currentChartData[currentChartData.length - 1].c;
     const { type, entryPrice } = tradeDetails;
 
     let isWin = false;
@@ -80,7 +84,7 @@ export default function TradeSim() {
     setBalance(prevBalance => prevBalance + resultAmount);
     setTradeDetails(null);
     setCountdown(null);
-  }, [tradeDetails, chartData, tradeAmount]);
+  }, [tradeDetails, tradeAmount]);
 
 
   useEffect(() => {

@@ -3,44 +3,22 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import TradeChart from './trade-chart';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { ArrowUp, ArrowDown, ZoomIn, ZoomOut, Clock, History } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { cn } from '@/lib/utils';
+import { 
+    Menu, Plus, Briefcase, CalendarDays, Megaphone, PlayCircle, MessageCircle, MoreHorizontal, 
+    Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft 
+} from 'lucide-react';
 
-const timeframes = ['1s', '5s', '30s', '1m', '5m', '15m', '1H', '4H', '1D'];
+const timeframes = ['1s', '1m', '5m', '1D', '1W', '1M'];
 const timeframeDurations: { [key: string]: number } = {
   '1s': 1000,
-  '5s': 5000,
-  '30s': 30000,
   '1m': 60000,
   '5m': 300000,
-  '15m': 900000,
-  '1H': 3600000,
-  '4H': 14400000,
   '1D': 86400000,
+  '1W': 604800000,
+  '1M': 2592000000,
 };
 
 const generateRandomCandle = (lastCandle: any) => {
@@ -53,76 +31,28 @@ const generateRandomCandle = (lastCandle: any) => {
     return { x: now.getTime(), o: open, h: high, l: low, c: close };
 };
 
-type TradeRecord = {
-  id: number;
-  timestamp: Date;
-  type: 'buy' | 'sell';
-  outcome: 'gain' | 'loss';
-  amount: number;
-  newBalance: number;
-};
 
 export default function TradeSim() {
   const [balance, setBalance] = useState(1000);
-  const [isTrading, setIsTrading] = useState(false);
-  const [notification, setNotification] = useState<string | null>('Aguardando sua operação...');
-  const [lastResult, setLastResult] = useState<'gain' | 'loss' | null>(null);
-  
   const [chartData, setChartData] = useState<any[]>([]);
-  const [marketData, setMarketData] = useState({ high: 0, low: Infinity, volume: 0 });
   const [activeTimeframe, setActiveTimeframe] = useState('1m');
-  const [zoomLevel, setZoomLevel] = useState(50);
+  const [tradeAmount, setTradeAmount] = useState(4);
+  const [leverage, setLeverage] = useState(300);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
-  const [countdown, setCountdown] = useState<number | null>(null);
-  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  const [tradeAmount, setTradeAmount] = useState(50);
-  const [tradeHistory, setTradeHistory] = useState<TradeRecord[]>([]);
-  const [currentTradeType, setCurrentTradeType] = useState<'buy' | 'sell' | null>(null);
-
-
-  // Setup balance on mount
-  useEffect(() => {
-    const savedBalance = sessionStorage.getItem('tradeSimBalance');
-    if (savedBalance) {
-        setBalance(parseFloat(savedBalance));
-    }
-  }, []);
-
-  // Regenerate chart history when timeframe changes
+  // Initial chart data generation
   useEffect(() => {
     let initialData: any[] = [];
     let lastCandle: any = null;
-    const duration = timeframeDurations[activeTimeframe];
-    for(let i=0; i < 200; i++) { // Generate initial data for zoom
+    const duration = timeframeDurations[activeTimeframe] || 60000;
+    for(let i=0; i < 200; i++) {
         const candle = generateRandomCandle(lastCandle);
         candle.x = new Date().getTime() - (200-i) * duration;
         initialData.push(candle);
         lastCandle = candle;
     }
     setChartData(initialData);
-
-    if (initialData.length > 0) {
-        setMarketData(prevMarketData => ({
-            high: Math.max(...initialData.map(d => d.h)),
-            low: Math.min(...initialData.map(d => d.l)),
-            volume: prevMarketData.volume || 327229.98
-        }));
-    }
   }, [activeTimeframe]);
-
-  useEffect(() => {
-    // Persist balance to session storage whenever it changes.
-    if (balance !== 1000) { // Avoid saving the initial default value
-        sessionStorage.setItem('tradeSimBalance', balance.toString());
-    }
-    
-    // Animate the balance value on change.
-    if (lastResult) {
-        const timer = setTimeout(() => setLastResult(null), 500);
-        return () => clearTimeout(timer);
-    }
-  }, [balance, lastResult]);
 
   const updateData = useCallback(() => {
     setChartData(prevData => {
@@ -131,285 +61,150 @@ export default function TradeSim() {
         const newCandle = generateRandomCandle(lastCandle);
         
         const newData = [...prevData, newCandle];
-        if (newData.length > 500) { // Keep a maximum of 500 candles
+        if (newData.length > 500) {
             newData.shift();
         }
-
-        const high = Math.max(...newData.map(d => d.h));
-        const low = Math.min(...newData.map(d => d.l));
-
-        setMarketData(prevMarketData => ({
-            high: high,
-            low: low,
-            volume: prevMarketData.volume + Math.random() * 100,
-        }));
-
         return newData;
     });
   }, []);
 
-  // Update chart data on an interval based on the active timeframe
+  // Update chart data on an interval
   useEffect(() => {
-    const duration = timeframeDurations[activeTimeframe];
+    const duration = timeframeDurations[activeTimeframe] || 60000;
     const interval = setInterval(updateData, duration);
     return () => clearInterval(interval);
   }, [activeTimeframe, updateData]);
 
-  // Countdown timer and trade finalization logic
+  // Update current time display
   useEffect(() => {
-    if (countdown === null) {
-      if (countdownTimerRef.current) {
-        clearTimeout(countdownTimerRef.current);
-        countdownTimerRef.current = null;
-      }
-      return;
-    }
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-    if (countdown > 0) {
-      countdownTimerRef.current = setTimeout(() => {
-        setCountdown(c => (c !== null ? c - 1 : null));
-        setNotification(`Aguarde... 0:${(countdown -1).toString().padStart(2, '0')}`);
-      }, 1000);
-    } else if (countdown === 0 && isTrading && currentTradeType) {
-        const isWin = Math.random() > 0.45;
-        const amount = tradeAmount;
-        const outcomeType = isWin ? 'gain' : 'loss';
-
-        setBalance(prevBalance => {
-          const newBalance = isWin ? prevBalance + amount : prevBalance - amount;
-          
-          const newRecord: TradeRecord = {
-            id: Date.now() + Math.random(),
-            timestamp: new Date(),
-            type: currentTradeType,
-            outcome: outcomeType,
-            amount: amount,
-            newBalance: newBalance,
-          };
-          setTradeHistory(prevHistory => [newRecord, ...prevHistory]);
-
-          setTimeout(() => {
-            if (newBalance >= tradeAmount) {
-              setNotification('Aguardando sua operação...');
-            } else {
-              setNotification('Fim de jogo! Recarregue para tentar novamente.');
-            }
-            setIsTrading(false);
-            setCurrentTradeType(null);
-          }, 3000);
-
-          return newBalance;
-        });
-
-        setLastResult(outcomeType);
-        setNotification(`${outcomeType.toUpperCase()}! Você ${outcomeType === 'gain' ? 'ganhou' : 'perdeu'} $${amount.toFixed(2)}.`);
-        setCountdown(null);
-    }
-    
-    return () => {
-      if (countdownTimerRef.current) {
-        clearTimeout(countdownTimerRef.current);
-      }
-    };
-  }, [countdown, isTrading, currentTradeType, tradeAmount]);
-
-
-  const handleTrade = (type: 'buy' | 'sell') => {
-    if (isTrading || balance < tradeAmount) {
-      if(balance < tradeAmount) setNotification('Saldo insuficiente para operar.');
-      return;
-    }
-    
-    setIsTrading(true);
-    setCurrentTradeType(type);
-    setLastResult(null);
-    setCountdown(30);
-    setNotification(`Sinal de ${type === 'buy' ? 'COMPRA' : 'VENDA'}! Aguarde 0:30`);
-  };
-  
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.valueAsNumber;
-    if (value > 0) {
-        setTradeAmount(value);
-    } else {
-        setTradeAmount(1);
+    setTradeAmount(Math.max(1, value || 1));
+  };
+
+  const handleTrade = (type: 'buy' | 'sell') => {
+    if (balance < tradeAmount) {
+      // Not enough balance, maybe show a toast in the future
+      return;
     }
-  };
+    
+    // Simplified random win/loss logic
+    const isWin = Math.random() > 0.45; 
+    const winAmount = tradeAmount * 0.9; // 90% return on win
+    const lossAmount = -tradeAmount;
 
-  const handleZoomIn = () => {
-    setZoomLevel(prev => Math.max(15, prev - 5));
-  };
+    const resultAmount = isWin ? winAmount : lossAmount;
 
-  const handleZoomOut = () => {
-    setZoomLevel(prev => Math.min(chartData.length, prev + 5));
+    setBalance(prevBalance => prevBalance + resultAmount);
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto bg-background text-foreground font-body animate-fade-in relative">
-      <header className="bg-card rounded-lg border border-border p-2 sm:p-4 mb-4">
-          <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
-              <div className="flex items-center gap-4">
-                  <h1 className="text-lg sm:text-xl font-bold tracking-tighter whitespace-nowrap">TRADE SIMULATOR</h1>
-                  <Sheet>
-                      <SheetTrigger asChild>
-                          <Button variant="outline" size="sm" className="h-8">
-                              <History className="h-4 w-4" />
-                              <span className="hidden sm:inline sm:ml-2">Histórico</span>
-                          </Button>
-                      </SheetTrigger>
-                      <SheetContent className="w-full max-w-full sm:max-w-xl">
-                          <SheetHeader>
-                              <SheetTitle>Histórico de Operações</SheetTitle>
-                              <SheetDescription>
-                                  Veja aqui todas as suas operações recentes.
-                              </SheetDescription>
-                          </SheetHeader>
-                          <div className="mt-4">
-                              <Table>
-                                  <TableHeader>
-                                      <TableRow>
-                                          <TableHead>Hora</TableHead>
-                                          <TableHead>Tipo</TableHead>
-                                          <TableHead>Resultado</TableHead>
-                                          <TableHead className="text-right">Valor</TableHead>
-                                          <TableHead className="text-right">Saldo Final</TableHead>
-                                      </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                      {tradeHistory.length > 0 ? tradeHistory.map(trade => (
-                                          <TableRow key={trade.id}>
-                                              <TableCell>{trade.timestamp.toLocaleTimeString()}</TableCell>
-                                              <TableCell>{trade.type === 'buy' ? 'Compra' : 'Venda'}</TableCell>
-                                              <TableCell className={cn(
-                                                  'font-semibold',
-                                                  trade.outcome === 'gain' ? 'text-primary' : 'text-destructive'
-                                              )}>
-                                                  {trade.outcome === 'gain' ? 'Gain' : 'Loss'}
-                                              </TableCell>
-                                              <TableCell className={cn(
-                                                  'text-right font-mono',
-                                                  trade.outcome === 'gain' ? 'text-primary' : 'text-destructive'
-                                              )}>
-                                                  {trade.outcome === 'gain' ? '+' : '-'}${trade.amount.toFixed(2)}
-                                              </TableCell>
-                                              <TableCell className="text-right font-mono">${trade.newBalance.toFixed(2)}</TableCell>
-                                          </TableRow>
-                                      )) : (
-                                          <TableRow>
-                                              <TableCell colSpan={5} className="text-center text-muted-foreground">Nenhuma operação registrada.</TableCell>
-                                          </TableRow>
-                                      )}
-                                  </TableBody>
-                              </Table>
-                          </div>
-                      </SheetContent>
-                  </Sheet>
+    <div className="flex h-screen w-full bg-background text-sm text-foreground font-body">
+      {/* Left Sidebar */}
+      <aside className="w-16 flex-none flex flex-col items-center space-y-2 bg-[#1e222d] py-4 border-r border-border">
+        <Button variant="ghost" size="icon"><Menu className="h-5 w-5" /></Button>
+        <Button variant="ghost" size="icon"><Plus className="h-5 w-5" /></Button>
+        <Separator className="!bg-border/50 my-2" />
+        <nav className="flex flex-col space-y-2 items-center">
+          <Button variant="ghost" size="icon"><Briefcase className="h-5 w-5" /></Button>
+          <Button variant="ghost" size="icon"><CalendarDays className="h-5 w-5" /></Button>
+          <Button variant="ghost" size="icon"><Megaphone className="h-5 w-5" /></Button>
+          <Button variant="ghost" size="icon"><PlayCircle className="h-5 w-5" /></Button>
+          <Button variant="ghost" size="icon"><MessageCircle className="h-5 w-5" /></Button>
+          <Button variant="ghost" size="icon"><MoreHorizontal className="h-5 w-5" /></Button>
+        </nav>
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        {/* Chart Area */}
+        <main className="flex-1 relative bg-card flex flex-col">
+          <div className="flex-1 relative">
+            <div className="absolute top-4 left-4 z-10 bg-black/50 p-3 rounded-lg backdrop-blur-sm">
+              <p className="text-xs text-muted-foreground">MAIORES MUDANÇAS DE HOJE</p>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-white font-bold">ZCash</p>
+                <p className="text-primary text-sm font-bold">+3.42%</p>
               </div>
-              <div className="flex items-center gap-2">
-                  <Label htmlFor="trade-amount" className="whitespace-nowrap">Valor</Label>
-                  <Input
-                      id="trade-amount"
-                      type="number"
-                      value={tradeAmount}
-                      onChange={handleAmountChange}
-                      min="1"
-                      step="10"
-                      className="w-28"
-                  />
-              </div>
-          </div>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
-            <span className="text-base sm:text-lg font-medium text-muted-foreground">USD/EUR</span>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-2 text-xs w-full sm:w-auto">
-                <div className="flex flex-col items-start sm:items-end">
-                    <span className="text-muted-foreground">Saldo</span>
-                    <span id="balance-value" className={cn(
-                        'text-base font-semibold transition-colors duration-300',
-                        {
-                            'text-primary animate-pulse': lastResult === 'gain',
-                            'text-destructive animate-pulse': lastResult === 'loss',
-                        }
-                    )}>
-                        $ {balance.toFixed(2)}
-                    </span>
-                </div>
-                <div className="flex flex-col items-start sm:items-end">
-                    <span className="text-muted-foreground">24h High</span>
-                    <span className="font-semibold">{marketData.high.toFixed(4)}</span>
-                </div>
-                <div className="flex flex-col items-start sm:items-end">
-                    <span className="text-muted-foreground">24h Low</span>
-                    <span className="font-semibold">{marketData.low.toFixed(4)}</span>
-                </div>
-                <div className="flex flex-col items-start sm:items-end">
-                    <span className="text-muted-foreground">Volume (USD)</span>
-                    <span className="font-semibold">{marketData.volume.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </div>
             </div>
+            {chartData.length > 0 ? <TradeChart data={chartData} /> : <div className="flex items-center justify-center h-full text-muted-foreground">Carregando gráfico...</div>}
           </div>
-      </header>
-
-      <main className="bg-card p-1 sm:p-2 rounded-lg border border-border">
-        <div className="flex items-center justify-between p-2">
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="text-xs h-7 w-24 justify-start px-2 sm:px-3">
-                        <Clock className="mr-2 h-4 w-4" />
-                        <span>{activeTimeframe}</span>
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                    {timeframes.map(tf => (
-                        <DropdownMenuItem
-                            key={tf}
-                            onSelect={() => setActiveTimeframe(tf)}
-                            className="text-xs"
-                        >
-                            {tf}
-                        </DropdownMenuItem>
-                    ))}
-                </DropdownMenuContent>
-            </DropdownMenu>
-
-            <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleZoomIn} disabled={zoomLevel <= 15}>
-                    <ZoomIn className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleZoomOut} disabled={zoomLevel >= chartData.length}>
-                    <ZoomOut className="h-4 w-4" />
-                </Button>
+        </main>
+        {/* Bottom Toolbar */}
+        <footer className="flex-none flex items-center justify-between p-2 bg-[#1e222d] border-t border-border">
+            <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon"><Info className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon"><Bell className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon"><CandlestickChart className="h-4 w-4" /></Button>
             </div>
-        </div>
-        <div className="h-64 md:h-96 w-full">
-            {chartData.length > 0 ? <TradeChart data={chartData} visibleRange={zoomLevel} /> : <div className="flex items-center justify-center h-full text-muted-foreground">Carregando gráfico...</div>}
-        </div>
-      </main>
-
-      <footer className="mt-4 flex flex-col gap-4">
-        <div id="notifications" className="text-center text-muted-foreground text-sm h-6 font-semibold flex-grow">
-            {notification}
-        </div>
-        <div className="grid grid-cols-2 gap-2 sm:gap-4">
-            <Button 
-                id="buy-button"
-                size="lg"
-                className="h-12 sm:h-14 text-base sm:text-lg font-bold bg-primary/90 hover:bg-primary text-primary-foreground transform transition-transform disabled:scale-100"
-                onClick={() => handleTrade('buy')}
-                disabled={isTrading || balance < tradeAmount}
-            >
-                <ArrowUp className="mr-2 h-5 w-5 sm:h-6 sm:w-6" /> COMPRAR
-            </Button>
-            <Button 
-                id="sell-button"
-                size="lg"
-                className="h-12 sm:h-14 text-base sm:text-lg font-bold bg-destructive/90 hover:bg-destructive text-destructive-foreground transform transition-transform disabled:scale-100"
-                onClick={() => handleTrade('sell')}
-                disabled={isTrading || balance < tradeAmount}
-            >
-                <ArrowDown className="mr-2 h-5 w-5 sm:h-6 sm:w-6" /> VENDER
+            <div className="flex items-center gap-1 text-xs">
+                {timeframes.map(tf => (
+                    <Button key={tf} variant={activeTimeframe === tf ? 'secondary' : 'ghost'} size="sm" className="h-7 px-3" onClick={() => setActiveTimeframe(tf)}>{tf}</Button>
+                ))}
+            </div>
+            <div className="text-xs text-muted-foreground w-36 text-right">
+                {currentTime.toLocaleString('pt-BR', { day: 'numeric', month: 'short', year:'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </div>
+        </footer>
+      </div>
+      
+      {/* Right Sidebar */}
+      <aside className="w-72 flex-none bg-[#1e222d] p-4 border-l border-border flex flex-col gap-4">
+        <div className="flex justify-between items-center">
+            <div>
+                <p className="text-primary font-bold text-lg">R$ {balance.toFixed(2)}</p>
+                <p className="text-xs text-muted-foreground">TOTAL R$ {balance.toFixed(2)}</p>
+            </div>
+            <Button variant="outline" className="border-primary text-primary hover:bg-primary/10 hover:text-primary">
+                + DEPOSITAR
             </Button>
         </div>
-      </footer>
+        <Separator className="!bg-border/50" />
+        
+        <div className="flex flex-col gap-3 text-sm">
+            <div className="flex justify-between items-center">
+                <label htmlFor="invest-amount" className="text-muted-foreground">INVEST.</label>
+                <Input id="invest-amount" type="number" value={tradeAmount} onChange={handleAmountChange} className="w-24 bg-input border-border text-right text-destructive font-bold" />
+            </div>
+            <div className="flex justify-between items-center">
+                <p className="text-muted-foreground">ALAV.</p>
+                <p className="text-white font-bold">x{leverage}</p>
+            </div>
+             <div className="flex justify-between items-center">
+                <p className="text-muted-foreground">TOTAL</p>
+                <p className="text-white font-bold">R$ {(tradeAmount * leverage).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
+            </div>
+        </div>
+
+        <div className="flex flex-col gap-3 mt-auto">
+            <Button size="lg" className="h-auto bg-primary hover:bg-primary/90 text-primary-foreground py-2" onClick={() => handleTrade('buy')}>
+                <div className="flex items-center justify-between w-full">
+                    <ArrowUpRight className="h-6 w-6" />
+                    <div className="flex flex-col items-end">
+                        <span className="font-bold text-base">COMPRAR</span>
+                        <span className="text-xs">{chartData.length > 0 ? chartData[chartData.length - 1].c.toFixed(5) : '0.00000'}</span>
+                    </div>
+                </div>
+            </Button>
+            <div className="flex justify-between items-center text-xs px-2">
+                <p className="text-muted-foreground">SPREAD</p>
+                <p className="text-white">92.2</p>
+            </div>
+            <Button size="lg" className="h-auto bg-destructive hover:bg-destructive/90 text-destructive-foreground py-2" onClick={() => handleTrade('sell')}>
+                 <div className="flex items-center justify-between w-full">
+                    <ArrowDownLeft className="h-6 w-6" />
+                    <div className="flex flex-col items-end">
+                        <span className="font-bold text-base">VENDER</span>
+                        <span className="text-xs">{chartData.length > 0 ? chartData[chartData.length - 1].c.toFixed(5) : '0.00000'}</span>
+                    </div>
+                </div>
+            </Button>
+        </div>
+      </aside>
     </div>
   );
 }

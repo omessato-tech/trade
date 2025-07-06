@@ -91,6 +91,7 @@ export default function TradeSim() {
   const gainSoundRef = useRef<HTMLAudioElement | null>(null);
   const lossSoundRef = useRef<HTMLAudioElement | null>(null);
   const heartbeatSoundRef = useRef<HTMLAudioElement | null>(null);
+  const notificationSoundRef = useRef<HTMLAudioElement | null>(null);
 
   const [tradeDetails, setTradeDetails] = useState<{ pairId: string, type: 'buy' | 'sell'; entryPrice: number; amount: number; } | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -171,6 +172,7 @@ export default function TradeSim() {
   useEffect(() => {
     gainSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/g8kuyoj92dse42x809px8/money-soundfx.mp3?rlkey=yrvyfsscwyuvvwkhz1db8pnsc&st=fwvi92jq&dl=1');
     lossSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/422avpg6mmh10gxzlgmtq/app-error.mp3?rlkey=eecjn7ft9w71oerkjvbpjnkl0&st=hngh4cba&dl=1');
+    notificationSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/z8b9x0ivjzy50lixhhien/mensagens-notificacao.mp3?rlkey=tjock8lev0b7h72agsoo4a9z3&st=7i0n01uk&dl=1');
     
     const heartbeatSound = new Audio('https://www.dropbox.com/scl/fi/o6ot3qm4qs33tnxt0l89b/Heart-Rate-Monitor.mov.mp3?rlkey=49vwh340mvpogypuv8lx3lsqn&st=lh31tk6d&dl=1');
     heartbeatSound.loop = true;
@@ -328,6 +330,7 @@ export default function TradeSim() {
                     percentage: predictionPercentage,
                     countdown: 5,
                 });
+                notificationSoundRef.current?.play().catch(error => console.error("Notification audio play failed", error));
             }
         }, 30000); // 30 seconds
 

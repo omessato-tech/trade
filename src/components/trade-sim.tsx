@@ -727,10 +727,10 @@ export default function TradeSim() {
                 className="group rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
                 <Image
-                    src="https://i.imgur.com/JRHPYuD.png"
+                    src="https://i.imgur.com/nujNEMB.png"
                     alt="Modo Pro"
-                    width={60}
-                    height={60}
+                    width={80}
+                    height={80}
                     className={cn(
                         "rounded-full transition-all duration-300 ease-in-out",
                         isProMode 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import TradeChart from './trade-chart';
 import { Button } from '@/components/ui/button';
 import { Separator } from "@/components/ui/separator";
@@ -449,9 +450,9 @@ export default function TradeSim() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Currency Pair Selector */}
         <div className="flex-none flex items-center gap-1 p-1 bg-[#1e222d] border-b border-border overflow-x-auto no-scrollbar">
-            <Button variant="ghost" size="icon" className="border border-border/50 h-10 w-10">
-                <LayoutGrid className="h-5 w-5" />
-            </Button>
+            <div className="flex items-center justify-center h-10 px-2 shrink-0">
+                <Image src="https://i.imgur.com/7muedyE.png" alt="TradeSim Logo" width={80} height={24} className="object-contain" />
+            </div>
             {openPairs.map(pairId => {
                 const pair = allCurrencyPairs.find(p => p.id === pairId);
                 if (!pair) return null;

@@ -450,9 +450,9 @@ export default function TradeSim() {
                 <Button variant="ghost" size="icon"><Plus className="h-5 w-5" /></Button>
             </DialogTrigger>
             <DialogContent className="p-0 max-w-4xl bg-transparent border-0 shadow-none">
-                <DialogHeader className="sr-only">
-                    <DialogTitle>Select Asset</DialogTitle>
-                    <DialogDescription>
+                <DialogHeader>
+                    <DialogTitle className="sr-only">Select Asset</DialogTitle>
+                    <DialogDescription className="sr-only">
                         Search for and select a currency pair or cryptocurrency to trade.
                     </DialogDescription>
                 </DialogHeader>
@@ -521,9 +521,9 @@ export default function TradeSim() {
                     </Button>
                 </DialogTrigger>
                 <DialogContent className="p-0 max-w-4xl bg-transparent border-0 shadow-none">
-                    <DialogHeader className="sr-only">
-                        <DialogTitle>Select Asset</DialogTitle>
-                        <DialogDescription>
+                    <DialogHeader>
+                        <DialogTitle className="sr-only">Select Asset</DialogTitle>
+                        <DialogDescription className="sr-only">
                             Search for and select a currency pair or cryptocurrency to trade.
                         </DialogDescription>
                     </DialogHeader>

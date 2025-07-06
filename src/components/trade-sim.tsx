@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { cn } from '@/lib/utils';
 import { 
-    Menu, Plus, Briefcase, CalendarDays, Megaphone, PlayCircle, MessageCircle, MoreHorizontal, 
+    Menu, Plus, Briefcase, History, Megaphone, PlayCircle, MessageCircle, MoreHorizontal, 
     Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, LayoutGrid, Bitcoin, X,
     Gem, CircleDollarSign, Lightbulb, Waves
 } from 'lucide-react';
@@ -17,6 +17,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AssetSelector } from './asset-selector';
 import type { LucideIcon } from 'lucide-react';
+import { TradeHistoryPanel } from './trade-history-panel';
+import type { TradeHistoryItem } from './trade-history-panel';
 
 const timeframes = ['5s', '30s', '1m', '5m'];
 const timeframeDurations: { [key: string]: number } = {
@@ -91,6 +93,7 @@ export default function TradeSim() {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [profitState, setProfitState] = useState<'profit' | 'loss' | null>(null);
   const [zoomLevel, setZoomLevel] = useState(200);
+  const [tradeHistory, setTradeHistory] = useState<TradeHistoryItem[]>([]);
 
   const [prediction, setPrediction] = useState<{ visible: boolean; type: 'buy' | 'sell'; amount: number; percentage: number; countdown: number; } | null>(null);
   const [predictionDirection, setPredictionDirection] = useState<'buy' | 'sell' | null>(null);
@@ -126,6 +129,19 @@ export default function TradeSim() {
     const winAmount = amount * 0.9;
     const lossAmount = -amount;
     const resultAmount = isWin ? winAmount : lossAmount;
+
+    const newHistoryItem: TradeHistoryItem = {
+      id: `${new Date().getTime()}`,
+      pairId: tradeDetails.pairId,
+      timestamp: new Date(),
+      type: tradeDetails.type,
+      entryPrice: tradeDetails.entryPrice,
+      closePrice: finalPrice,
+      amount: tradeDetails.amount,
+      resultAmount: resultAmount,
+      isWin: isWin,
+    };
+    setTradeHistory(prev => [newHistoryItem, ...prev]);
     
     setLastTradeResult({
         amount: Math.abs(resultAmount),
@@ -421,7 +437,7 @@ export default function TradeSim() {
         <Separator className="!bg-border/50 my-2" />
         <nav className="flex flex-col space-y-2 items-center">
           <Button variant="ghost" size="icon"><Briefcase className="h-5 w-5" /></Button>
-          <Button variant="ghost" size="icon"><CalendarDays className="h-5 w-5" /></Button>
+          <TradeHistoryPanel history={tradeHistory} allPairs={allCurrencyPairs} />
           <Button variant="ghost" size="icon"><Megaphone className="h-5 w-5" /></Button>
           <Button variant="ghost" size="icon"><PlayCircle className="h-5 w-5" /></Button>
           <Button variant="ghost" size="icon"><MessageCircle className="h-5 w-5" /></Button>

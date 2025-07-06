@@ -20,8 +20,6 @@ import { AssetSelector } from './asset-selector';
 import type { LucideIcon } from 'lucide-react';
 import { TradeHistoryPanel } from './trade-history-panel';
 import type { TradeHistoryItem } from './trade-history-panel';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 
 const timeframes = ['5s', '30s', '1m', '5m'];
 const timeframeDurations: { [key: string]: number } = {
@@ -723,18 +721,30 @@ export default function TradeSim() {
                 </Button>
             </div>
         </div>
-        <div className="flex items-center justify-center space-x-3 pt-3 border-t border-border/50">
-            <Switch
-                id="pro-mode"
-                checked={isProMode}
-                onCheckedChange={setIsProMode}
-            />
-            <Label htmlFor="pro-mode" className={cn(
-                "font-bold transition-colors text-sm", 
+        <div className="flex flex-col items-center justify-center gap-2 pt-3 border-t border-border/50">
+            <button
+                onClick={() => setIsProMode(prev => !prev)}
+                className="group rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+                <Image
+                    src="https://i.imgur.com/JRHPYuD.png"
+                    alt="Modo Pro"
+                    width={60}
+                    height={60}
+                    className={cn(
+                        "rounded-full transition-all duration-300 ease-in-out",
+                        isProMode 
+                            ? "brightness-110 saturate-150 [filter:drop-shadow(0_0_8px_hsl(var(--primary)))]" 
+                            : "grayscale brightness-75 opacity-80 group-hover:opacity-100 group-hover:grayscale-0"
+                    )}
+                />
+            </button>
+            <p className={cn(
+                "font-bold transition-colors text-xs tracking-widest uppercase",
                 isProMode ? "text-primary" : "text-muted-foreground"
             )}>
-                MODO PRO: NOTORUIN
-            </Label>
+                Modo Pro
+            </p>
         </div>
       </aside>
     </div>

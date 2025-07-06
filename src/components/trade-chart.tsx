@@ -30,14 +30,6 @@ const TradeChart = ({ data, visibleRange, entryLine, profitState, currentPrice }
   const startIndex = Math.max(0, lastIndex - (visibleRange ? visibleRange - 1 : data.length - 1));
   const minTime = data.length > 0 ? data[startIndex].x : undefined;
   const maxTime = data.length > 0 ? data[lastIndex].x : undefined;
-
-  const getLineColor = () => {
-    if (!entryLine) return 'transparent';
-    if (profitState === 'profit') return 'hsl(var(--primary))';
-    if (profitState === 'loss') return 'hsl(var(--destructive))';
-    // Fallback for initial render
-    return entryLine.type === 'buy' ? 'hsl(var(--primary))' : 'hsl(var(--destructive))';
-  };
   
   const chartAnnotations: any = {};
   
@@ -46,7 +38,7 @@ const TradeChart = ({ data, visibleRange, entryLine, profitState, currentPrice }
       type: 'line' as const,
       yMin: entryLine.price,
       yMax: entryLine.price,
-      borderColor: getLineColor(),
+      borderColor: '#FF8C00',
       borderWidth: 2,
       borderDash: [6, 6],
       label: {

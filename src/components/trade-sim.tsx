@@ -20,6 +20,7 @@ import { AssetSelector } from './asset-selector';
 import type { LucideIcon } from 'lucide-react';
 import { TradeHistoryPanel } from './trade-history-panel';
 import type { TradeHistoryItem } from './trade-history-panel';
+import { ScrollArea } from './ui/scroll-area';
 
 const timeframes = ['5s', '30s', '1m', '5m'];
 const timeframeDurations: { [key: string]: number } = {
@@ -39,6 +40,16 @@ export interface CurrencyPair {
   flag1?: string;
   flag2?: string;
   icon?: LucideIcon;
+}
+
+interface PredictionMessage {
+  id: string;
+  type: 'buy' | 'sell';
+  amount: number;
+  percentage: number;
+  countdown: number;
+  pairName: string;
+  status: 'active' | 'followed' | 'ignored' | 'expired';
 }
 
 const allCurrencyPairs: CurrencyPair[] = [
@@ -99,8 +110,8 @@ export default function TradeSim() {
   const [zoomLevel, setZoomLevel] = useState(200);
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryItem[]>([]);
 
-  const [prediction, setPrediction] = useState<{ visible: boolean; type: 'buy' | 'sell'; amount: number; percentage: number; countdown: number; } | null>(null);
-  const [isPredictionMinimized, setIsPredictionMinimized] = useState(false);
+  const [predictions, setPredictions] = useState<PredictionMessage[]>([]);
+  const [isChatMinimized, setIsChatMinimized] = useState(true);
   const [predictionDirection, setPredictionDirection] = useState<'buy' | 'sell' | null>(null);
   const [isProMode, setIsProMode] = useState(false);
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
@@ -265,7 +276,7 @@ export default function TradeSim() {
     return () => clearInterval(timer);
   }, []);
 
-  // Countdown timer logic
+  // Countdown timer logic for active trades
   useEffect(() => {
     if (countdown === null) return;
 
@@ -327,50 +338,60 @@ export default function TradeSim() {
     }
   }, [isSoundEnabled]);
   
-    // Prediction Card Timer
-    useEffect(() => {
-        const predictionInterval = setInterval(() => {
-            if (!tradeDetails && !prediction?.visible) {
-                const predictionType = Math.random() > 0.5 ? 'buy' : 'sell';
-                
-                const predictionPercentage = isProMode
-                    ? Math.floor(Math.random() * 21) + 20 // 20% a 40%
-                    : Math.floor(Math.random() * 11) + 10; // 10% a 20%
-                
-                const predictionAmount = (balance * predictionPercentage) / 100;
+  // Prediction Generation
+  useEffect(() => {
+    const predictionInterval = setInterval(() => {
+      const hasActivePrediction = predictions.some(p => p.status === 'active');
+      if (!tradeDetails && !hasActivePrediction) {
+        const predictionType = Math.random() > 0.5 ? 'buy' : 'sell';
+        
+        const predictionPercentage = isProMode
+            ? Math.floor(Math.random() * 21) + 20 // 20% to 40%
+            : Math.floor(Math.random() * 11) + 10; // 10% to 20%
+        
+        const predictionAmount = (balance * predictionPercentage) / 100;
 
-                setPrediction({
-                    visible: true,
-                    type: predictionType,
-                    amount: predictionAmount,
-                    percentage: predictionPercentage,
-                    countdown: 5,
-                });
-                setIsPredictionMinimized(false);
-                if (isSoundEnabled) {
-                  notificationSoundRef.current?.play().catch(error => console.error("Notification audio play failed", error));
-                }
-            }
-        }, 30000); // 30 seconds
+        const newPrediction: PredictionMessage = {
+          id: new Date().getTime().toString(),
+          type: predictionType,
+          amount: predictionAmount,
+          percentage: predictionPercentage,
+          countdown: 15,
+          pairName: activePair.name,
+          status: 'active',
+        };
 
-        return () => clearInterval(predictionInterval);
-    }, [balance, tradeDetails, prediction?.visible, isProMode, isSoundEnabled]);
-
-    // Prediction Countdown Logic
-    useEffect(() => {
-        if (!prediction?.visible) return;
-
-        if (prediction.countdown <= 0) {
-            setPrediction(null);
-            return;
+        setPredictions(prev => [newPrediction, ...prev].slice(0, 5));
+        setIsChatMinimized(false);
+        if (isSoundEnabled) {
+          notificationSoundRef.current?.play().catch(error => console.error("Notification audio play failed", error));
         }
+      }
+    }, 30000); // 30 seconds
 
-        const timer = setTimeout(() => {
-            setPrediction(p => (p ? { ...p, countdown: p.countdown - 1 } : null));
-        }, 1000);
+    return () => clearInterval(predictionInterval);
+  }, [balance, tradeDetails, predictions, isProMode, isSoundEnabled, activePair.name]);
 
-        return () => clearTimeout(timer);
-    }, [prediction]);
+  // Prediction Countdown Logic
+  useEffect(() => {
+    if (!predictions.some(p => p.status === 'active')) return;
+
+    const timer = setTimeout(() => {
+      setPredictions(prevPredictions => 
+        prevPredictions.map(p => {
+          if (p.status === 'active' && p.countdown > 0) {
+            return { ...p, countdown: p.countdown - 1 };
+          }
+          if (p.status === 'active' && p.countdown === 0) {
+            return { ...p, status: 'expired' }; 
+          }
+          return p;
+        })
+      );
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [predictions]);
 
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -397,12 +418,23 @@ export default function TradeSim() {
     setCountdown(30);
   };
 
-  const handleFollowPrediction = () => {
-    if (!prediction || tradeDetails) return;
+  const handleFollowPrediction = (predictionId: string) => {
+    const predictionToFollow = predictions.find(p => p.id === predictionId);
+    if (!predictionToFollow || tradeDetails || predictionToFollow.status !== 'active') return;
+
+    if (predictionToFollow.pairName !== activePair.name) {
+      // Here you could add a toast notification to inform the user to switch pairs
+      console.warn(`Prediction is for ${predictionToFollow.pairName}, but active pair is ${activePair.name}.`);
+      return;
+    }
     
-    handleTrade(prediction.type, prediction.amount);
-    setPredictionDirection(prediction.type);
-    setPrediction(null);
+    handleTrade(predictionToFollow.type, predictionToFollow.amount);
+    setPredictionDirection(predictionToFollow.type);
+    setPredictions(prev => prev.map(p => p.id === predictionId ? { ...p, status: 'followed' } : p));
+  };
+  
+  const handleIgnorePrediction = (predictionId: string) => {
+    setPredictions(prev => prev.map(p => p.id === predictionId ? { ...p, status: 'ignored' } : p));
   };
 
   const handleToggleProMode = () => {
@@ -583,76 +615,110 @@ export default function TradeSim() {
                 </div>
             )}
             
-          {/* Prediction Chat Bubble */}
-          {prediction?.visible && (
-            <div className="absolute bottom-4 left-4 z-30 w-full max-w-xs animate-fade-in">
-                <div className="flex items-end gap-3">
-                    <button
-                        onClick={() => setIsPredictionMinimized(p => !p)}
-                        className="group rounded-full transition-transform duration-300 ease-out hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    >
-                        <Avatar className={cn(
-                            "h-12 w-12 border-2 border-primary shadow-lg",
-                            !isPredictionMinimized && "opacity-80 group-hover:opacity-100"
-                        )}>
-                            <AvatarImage src="https://i.imgur.com/1yOxxAY.png" alt="DETONA 7" />
-                            <AvatarFallback>D7</AvatarFallback>
-                        </Avatar>
-                    </button>
-
-                    {!isPredictionMinimized && (
-                       <div className="animate-chat-bubble-in origin-bottom-left">
-                            <Card className="relative w-full bg-background/80 backdrop-blur-sm border-primary shadow-lg shadow-primary/20">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="absolute top-1 right-1 h-6 w-6 text-muted-foreground hover:text-foreground"
-                                    onClick={() => setIsPredictionMinimized(true)}
-                                >
-                                    <X className="h-4 w-4" />
-                                    <span className="sr-only">Minimizar</span>
-                                </Button>
-                                <CardHeader className="p-3 pr-8">
-                                    <CardTitle className="flex items-center justify-between gap-2 text-primary text-base">
-                                        <span>DETONA 7</span>
-                                        <span className="text-xs font-normal text-muted-foreground">{prediction.countdown}s</span>
-                                    </CardTitle>
-                                    <CardDescription className="text-xs">Oportunidade em {activePair.name}!</CardDescription>
-                                </CardHeader>
-                                <CardContent className="text-center p-3 pt-0">
-                                    <p className="text-sm font-bold">
-                                        {`Entrada: ${prediction.percentage}% da banca`}
-                                    </p>
-                                    <p className="text-base font-bold uppercase">
-                                        {`${prediction.type === 'buy' ? 'COMPRE' : 'VENDA'} sem GALE`}
-                                    </p>
-                                </CardContent>
-                                <CardFooter className="flex flex-col gap-2 p-3 pt-0">
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <Button size="sm" className="w-full bg-primary hover:bg-primary/90">SEGUIR SINAL</Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Confirmar Entrada?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    Você está prestes a fazer uma entrada de {prediction.type === 'buy' ? 'COMPRA' : 'VENDA'} em {activePair.name} no valor de R$ {prediction.amount.toFixed(2)}. Esta ação é baseada na previsão "DETONA 7".
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                <AlertDialogAction onClick={handleFollowPrediction}>Confirmar e Entrar</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                    <Button size="sm" variant="outline" className="w-full" onClick={() => setPrediction(null)}>Ignorar</Button>
-                                </CardFooter>
-                            </Card>
-                        </div>
+          {/* Prediction Chat */}
+          <div className="absolute bottom-4 left-4 z-30 w-full max-w-sm">
+            <div className="flex flex-col items-end gap-2">
+                {!isChatMinimized && (
+                    <Card className="w-full bg-background/80 backdrop-blur-sm border-primary shadow-lg shadow-primary/20 animate-fade-in">
+                        <CardHeader className="flex flex-row items-center justify-between p-3 bg-primary text-primary-foreground rounded-t-lg">
+                            <div className="flex items-center gap-3">
+                                <Avatar className="h-10 w-10 border-2 border-white/50">
+                                    <AvatarImage src="https://i.imgur.com/1yOxxAY.png" alt="DETONA 7" />
+                                    <AvatarFallback>D7</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <CardTitle className="text-base font-bold">DETONA 7 SINAIS</CardTitle>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="relative flex h-2 w-2">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                        </span>
+                                        <p className="text-xs text-primary-foreground/80">Online</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-primary-foreground hover:bg-white/20" onClick={() => setIsChatMinimized(true)}>
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <ScrollArea className="h-80 p-4">
+                                <div className="flex flex-col gap-4">
+                                    <div className="flex items-start gap-3">
+                                        <Avatar className="h-8 w-8 border-2 border-primary shrink-0">
+                                            <AvatarImage src="https://i.imgur.com/1yOxxAY.png" alt="DETONA 7" />
+                                            <AvatarFallback>D7</AvatarFallback>
+                                        </Avatar>
+                                        <div className="p-3 rounded-lg bg-muted max-w-[85%]">
+                                            <p className="text-sm">Analisando o mercado em busca das melhores oportunidades! Fique atento.</p>
+                                        </div>
+                                    </div>
+                                    
+                                    {[...predictions].reverse().map(p => (
+                                        <div key={p.id} className="flex items-start gap-3">
+                                            <Avatar className="h-8 w-8 border-2 border-primary shrink-0">
+                                                <AvatarImage src="https://i.imgur.com/1yOxxAY.png" alt="DETONA 7" />
+                                                <AvatarFallback>D7</AvatarFallback>
+                                            </Avatar>
+                                            <div className="p-3 rounded-lg bg-muted max-w-[85%] space-y-2">
+                                                <p className="font-bold text-sm">Oportunidade em {p.pairName}!</p>
+                                                <p className="text-sm">
+                                                    Entrada de <strong>{p.percentage}%</strong> da banca (R$ {p.amount.toFixed(2)}).
+                                                    <br />
+                                                    Operação: <strong className={p.type === 'buy' ? 'text-primary' : 'text-destructive'}>{p.type === 'buy' ? 'COMPRA' : 'VENDA'}</strong>.
+                                                </p>
+                                                {p.status === 'active' && (
+                                                    <div className="pt-2">
+                                                        <div className="text-xs text-center text-muted-foreground mb-2">Expira em {p.countdown}s</div>
+                                                        <div className="flex gap-2">
+                                                            <AlertDialog>
+                                                                <AlertDialogTrigger asChild>
+                                                                    <Button size="sm" className="flex-1 bg-primary hover:bg-primary/90">SEGUIR</Button>
+                                                                </AlertDialogTrigger>
+                                                                <AlertDialogContent>
+                                                                    <AlertDialogHeader>
+                                                                        <AlertDialogTitle>Confirmar Entrada?</AlertDialogTitle>
+                                                                        <AlertDialogDescription>
+                                                                            Você está prestes a fazer uma entrada de {p.type === 'buy' ? 'COMPRA' : 'VENDA'} em {p.pairName} no valor de R$ {p.amount.toFixed(2)}.
+                                                                        </AlertDialogDescription>
+                                                                    </AlertDialogHeader>
+                                                                    <AlertDialogFooter>
+                                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                        <AlertDialogAction onClick={() => handleFollowPrediction(p.id)}>Confirmar</AlertDialogAction>
+                                                                    </AlertDialogFooter>
+                                                                </AlertDialogContent>
+                                                            </AlertDialog>
+                                                            <Button size="sm" variant="outline" className="flex-1" onClick={() => handleIgnorePrediction(p.id)}>Ignorar</Button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {p.status === 'followed' && <p className="text-xs font-bold text-primary text-center pt-2">✅ SINAL SEGUIDO</p>}
+                                                {p.status === 'ignored' && <p className="text-xs font-bold text-muted-foreground text-center pt-2">❌ SINAL IGNORADO</p>}
+                                                {p.status === 'expired' && <p className="text-xs font-bold text-muted-foreground text-center pt-2">⏰ SINAL EXPIRADO</p>}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </ScrollArea>
+                        </CardContent>
+                    </Card>
+                )}
+                
+                <button
+                    onClick={() => setIsChatMinimized(p => !p)}
+                    className="group relative rounded-full transition-transform duration-300 ease-out hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                    <Avatar className="h-14 w-14 border-2 border-primary shadow-lg">
+                        <AvatarImage src="https://i.imgur.com/1yOxxAY.png" alt="DETONA 7" />
+                        <AvatarFallback>D7</AvatarFallback>
+                    </Avatar>
+                    {isChatMinimized && predictions.some(p => p.status === 'active') && (
+                        <span className="absolute top-0 right-0 block h-4 w-4 rounded-full bg-destructive ring-2 ring-background animate-pulse" />
                     )}
-                </div>
+                </button>
             </div>
-          )}
+          </div>
+
 
           <div className="flex-1 relative z-10">
             {currentChart.length > 0 ? (

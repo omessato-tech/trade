@@ -14,7 +14,7 @@ import {
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { AssetSelector } from './asset-selector';
 import type { LucideIcon } from 'lucide-react';
 
@@ -404,6 +404,12 @@ export default function TradeSim() {
                 <Button variant="ghost" size="icon"><Plus className="h-5 w-5" /></Button>
             </DialogTrigger>
             <DialogContent className="p-0 max-w-4xl bg-transparent border-0 shadow-none">
+                <DialogHeader className="sr-only">
+                    <DialogTitle>Select Asset</DialogTitle>
+                    <DialogDescription>
+                        Search for and select a currency pair or cryptocurrency to trade.
+                    </DialogDescription>
+                </DialogHeader>
                 <AssetSelector 
                     allPairs={allCurrencyPairs}
                     openPairs={openPairs}
@@ -466,6 +472,12 @@ export default function TradeSim() {
                     </Button>
                 </DialogTrigger>
                 <DialogContent className="p-0 max-w-4xl bg-transparent border-0 shadow-none">
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>Select Asset</DialogTitle>
+                        <DialogDescription>
+                            Search for and select a currency pair or cryptocurrency to trade.
+                        </DialogDescription>
+                    </DialogHeader>
                     <AssetSelector 
                         allPairs={allCurrencyPairs}
                         openPairs={openPairs}

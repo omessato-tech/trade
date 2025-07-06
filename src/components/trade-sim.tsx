@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { 
     Menu, Plus, Briefcase, History, Megaphone, PlayCircle, MessageCircle, MoreHorizontal, 
     Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, LayoutGrid, Bitcoin, X,
-    Gem, CircleDollarSign, Lightbulb, Waves
+    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
@@ -102,6 +102,7 @@ export default function TradeSim() {
   const [prediction, setPrediction] = useState<{ visible: boolean; type: 'buy' | 'sell'; amount: number; percentage: number; countdown: number; } | null>(null);
   const [predictionDirection, setPredictionDirection] = useState<'buy' | 'sell' | null>(null);
   const [isProMode, setIsProMode] = useState(false);
+  const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   
   const chartDataRef = useRef<{ [key: string]: any[] }>();
   chartDataRef.current = chartData;
@@ -156,17 +157,19 @@ export default function TradeSim() {
         setLastTradeResult(null);
     }, 2000);
 
-    if (isWin) {
-        gainSoundRef.current?.play().catch(error => console.error("Audio play failed", error));
-    } else {
-        lossSoundRef.current?.play().catch(error => console.error("Audio play failed", error));
+    if (isSoundEnabled) {
+      if (isWin) {
+          gainSoundRef.current?.play().catch(error => console.error("Audio play failed", error));
+      } else {
+          lossSoundRef.current?.play().catch(error => console.error("Audio play failed", error));
+      }
     }
 
     setBalance(prevBalance => prevBalance + resultAmount);
     setTradeDetails(null);
     setCountdown(null);
     setPredictionDirection(null);
-  }, [tradeDetails]);
+  }, [tradeDetails, isSoundEnabled]);
 
 
   useEffect(() => {
@@ -301,7 +304,9 @@ export default function TradeSim() {
     setProfitState(newProfitState);
 
     if (newProfitState === 'loss') {
-        heartbeatSoundRef.current?.play().catch(error => console.error("Heartbeat audio play failed", error));
+        if (isSoundEnabled) {
+          heartbeatSoundRef.current?.play().catch(error => console.error("Heartbeat audio play failed", error));
+        }
     } else { // profit
         if (heartbeatSoundRef.current) {
             heartbeatSoundRef.current.pause();
@@ -309,7 +314,15 @@ export default function TradeSim() {
         }
     }
 
-  }, [chartData, tradeDetails]);
+  }, [chartData, tradeDetails, isSoundEnabled]);
+
+  // Stop sounds if they are disabled
+  useEffect(() => {
+    if (!isSoundEnabled && heartbeatSoundRef.current) {
+      heartbeatSoundRef.current.pause();
+      heartbeatSoundRef.current.currentTime = 0;
+    }
+  }, [isSoundEnabled]);
   
     // Prediction Card Timer
     useEffect(() => {
@@ -330,12 +343,14 @@ export default function TradeSim() {
                     percentage: predictionPercentage,
                     countdown: 5,
                 });
-                notificationSoundRef.current?.play().catch(error => console.error("Notification audio play failed", error));
+                if (isSoundEnabled) {
+                  notificationSoundRef.current?.play().catch(error => console.error("Notification audio play failed", error));
+                }
             }
         }, 30000); // 30 seconds
 
         return () => clearInterval(predictionInterval);
-    }, [balance, tradeDetails, prediction?.visible, isProMode]);
+    }, [balance, tradeDetails, prediction?.visible, isProMode, isSoundEnabled]);
 
     // Prediction Countdown Logic
     useEffect(() => {
@@ -453,6 +468,9 @@ export default function TradeSim() {
           <Button variant="ghost" size="icon"><PlayCircle className="h-5 w-5" /></Button>
           <Button variant="ghost" size="icon"><MessageCircle className="h-5 w-5" /></Button>
           <Button variant="ghost" size="icon"><MoreHorizontal className="h-5 w-5" /></Button>
+          <Button variant="ghost" size="icon" onClick={() => setIsSoundEnabled(prev => !prev)}>
+            {isSoundEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+          </Button>
         </nav>
       </aside>
 

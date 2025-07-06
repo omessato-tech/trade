@@ -91,6 +91,7 @@ export default function TradeSim() {
   const heartbeatSoundRef = useRef<HTMLAudioElement | null>(null);
   const notificationSoundRef = useRef<HTMLAudioElement | null>(null);
   const clickSoundRef = useRef<HTMLAudioElement | null>(null);
+  const modoProSoundRef = useRef<HTMLAudioElement | null>(null);
 
   const [tradeDetails, setTradeDetails] = useState<{ pairId: string, type: 'buy' | 'sell'; entryPrice: number; amount: number; } | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -176,6 +177,7 @@ export default function TradeSim() {
     lossSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/422avpg6mmh10gxzlgmtq/app-error.mp3?rlkey=eecjn7ft9w71oerkjvbpjnkl0&st=hngh4cba&dl=1');
     notificationSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/z8b9x0ivjzy50lixhhien/mensagens-notificacao.mp3?rlkey=tjock8lev0b7h72agsoo4a9z3&st=7i0n01uk&dl=1');
     clickSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/n55rapwidqiyan35ea5h3/button_09-190435.mp3?rlkey=ok05nvpvpvljsqzxa1iewcqp6&st=p8kr3pnx&dl=1');
+    modoProSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/dt5877jdhzsb26v6nzffh/Efeito-Sonoro-RISADA-MALIGNA.mp3?rlkey=ceai7boxregpmf38eo4lkc58t&st=syuyrxhj&dl=1');
 
     const heartbeatSound = new Audio('https://www.dropbox.com/scl/fi/o6ot3qm4qs33tnxt0l89b/Heart-Rate-Monitor.mov.mp3?rlkey=49vwh340mvpogypuv8lx3lsqn&st=lh31tk6d&dl=1');
     heartbeatSound.loop = true;
@@ -399,6 +401,16 @@ export default function TradeSim() {
     handleTrade(prediction.type, prediction.amount);
     setPredictionDirection(prediction.type);
     setPrediction(null);
+  };
+
+  const handleToggleProMode = () => {
+    setIsProMode(prevIsPro => {
+        const newIsPro = !prevIsPro;
+        if (newIsPro && isSoundEnabled) {
+            modoProSoundRef.current?.play().catch(error => console.error("Audio play failed", error));
+        }
+        return newIsPro;
+    });
   };
   
   const handleZoom = () => {
@@ -723,7 +735,7 @@ export default function TradeSim() {
         </div>
         <div className="flex flex-col items-center justify-center gap-2 pt-3 border-t border-border/50">
             <button
-                onClick={() => setIsProMode(prev => !prev)}
+                onClick={handleToggleProMode}
                 className="group rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
                 <Image

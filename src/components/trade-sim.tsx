@@ -20,6 +20,8 @@ import { AssetSelector } from './asset-selector';
 import type { LucideIcon } from 'lucide-react';
 import { TradeHistoryPanel } from './trade-history-panel';
 import type { TradeHistoryItem } from './trade-history-panel';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 const timeframes = ['5s', '30s', '1m', '5m'];
 const timeframeDurations: { [key: string]: number } = {
@@ -98,6 +100,7 @@ export default function TradeSim() {
 
   const [prediction, setPrediction] = useState<{ visible: boolean; type: 'buy' | 'sell'; amount: number; percentage: number; countdown: number; } | null>(null);
   const [predictionDirection, setPredictionDirection] = useState<'buy' | 'sell' | null>(null);
+  const [isProMode, setIsProMode] = useState(false);
   
   const chartDataRef = useRef<{ [key: string]: any[] }>();
   chartDataRef.current = chartData;
@@ -311,7 +314,11 @@ export default function TradeSim() {
         const predictionInterval = setInterval(() => {
             if (!tradeDetails && !prediction?.visible) {
                 const predictionType = Math.random() > 0.5 ? 'buy' : 'sell';
-                const predictionPercentage = Math.floor(Math.random() * 11) + 10; // 10% to 20%
+                
+                const predictionPercentage = isProMode
+                    ? Math.floor(Math.random() * 21) + 20 // 20% a 40%
+                    : Math.floor(Math.random() * 11) + 10; // 10% a 20%
+                
                 const predictionAmount = (balance * predictionPercentage) / 100;
 
                 setPrediction({
@@ -325,7 +332,7 @@ export default function TradeSim() {
         }, 30000); // 30 seconds
 
         return () => clearInterval(predictionInterval);
-    }, [balance, tradeDetails, prediction?.visible]);
+    }, [balance, tradeDetails, prediction?.visible, isProMode]);
 
     // Prediction Countdown Logic
     useEffect(() => {
@@ -688,6 +695,19 @@ export default function TradeSim() {
                     </div>
                 </Button>
             </div>
+        </div>
+        <div className="flex items-center justify-center space-x-3 pt-3 border-t border-border/50">
+            <Switch
+                id="pro-mode"
+                checked={isProMode}
+                onCheckedChange={setIsProMode}
+            />
+            <Label htmlFor="pro-mode" className={cn(
+                "font-bold transition-colors text-sm", 
+                isProMode ? "text-primary" : "text-muted-foreground"
+            )}>
+                MODO PRO: NOTORUIN
+            </Label>
         </div>
       </aside>
     </div>

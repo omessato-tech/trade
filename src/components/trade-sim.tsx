@@ -73,6 +73,11 @@ export default function TradeSim() {
   const chartDataRef = useRef<{ [key: string]: any[] }>();
   chartDataRef.current = chartData;
 
+  const [hasMounted, setHasMounted] = useState(false);
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
   const activePair = currencyPairs.find(p => p.id === activePairId)!;
 
   const resolveTrade = useCallback(() => {
@@ -525,7 +530,7 @@ export default function TradeSim() {
                 ))}
             </div>
             <div className="text-xs text-muted-foreground w-36 text-right">
-                {currentTime.toLocaleString('pt-BR', { day: 'numeric', month: 'short', year:'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                {hasMounted && currentTime.toLocaleString('pt-BR', { day: 'numeric', month: 'short', year:'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </div>
         </footer>
       </div>

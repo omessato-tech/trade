@@ -8,11 +8,15 @@ import { Input } from "@/components/ui/input";
 import { cn } from '@/lib/utils';
 import { 
     Menu, Plus, Briefcase, CalendarDays, Megaphone, PlayCircle, MessageCircle, MoreHorizontal, 
-    Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, Sparkles, LayoutGrid, Bitcoin, X
+    Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, LayoutGrid, Bitcoin, X,
+    Gem, CircleDollarSign, Lightbulb, Waves
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { AssetSelector } from './asset-selector';
+import type { LucideIcon } from 'lucide-react';
 
 const timeframes = ['5s', '30s', '1m', '5m'];
 const timeframeDurations: { [key: string]: number } = {
@@ -22,23 +26,44 @@ const timeframeDurations: { [key: string]: number } = {
   '5m': 300000,
 };
 
-const currencyPairs = [
-  { id: 'EUR/USD', name: 'EUR/USD', type: 'Binary', basePrice: 1.0850, precision: 5, flag1: '🇪🇺', flag2: '🇺🇸' },
-  { id: 'EUR/JPY', name: 'EUR/JPY', type: 'Binary', basePrice: 169.50, precision: 3, flag1: '🇪🇺', flag2: '🇯🇵' },
-  { id: 'Bitcoin', name: 'Bitcoin', type: 'Crypto', basePrice: 65000, precision: 2, icon: Bitcoin },
-  { id: 'CHF/JPY', name: 'CHF/JPY', type: 'Forex', basePrice: 175.20, precision: 3, flag1: '🇨🇭', flag2: '🇯🇵' },
+export interface CurrencyPair {
+  id: string;
+  name: string;
+  category: 'Forex' | 'Crypto';
+  type: 'Binary' | 'Crypto' | 'Forex';
+  basePrice: number;
+  precision: number;
+  flag1?: string;
+  flag2?: string;
+  icon?: LucideIcon;
+}
+
+const allCurrencyPairs: CurrencyPair[] = [
+  // Forex
+  { id: 'EUR/USD', name: 'EUR/USD', category: 'Forex', type: 'Binary', basePrice: 1.0850, precision: 5, flag1: '🇪🇺', flag2: '🇺🇸' },
+  { id: 'EUR/JPY', name: 'EUR/JPY', category: 'Forex', type: 'Binary', basePrice: 169.50, precision: 3, flag1: '🇪🇺', flag2: '🇯🇵' },
+  { id: 'CHF/JPY', name: 'CHF/JPY', category: 'Forex', type: 'Forex', basePrice: 175.20, precision: 3, flag1: '🇨🇭', flag2: '🇯🇵' },
+  { id: 'GBP/USD', name: 'GBP/USD', category: 'Forex', type: 'Forex', basePrice: 1.2730, precision: 5, flag1: '🇬🇧', flag2: '🇺🇸' },
+  { id: 'AUD/USD', name: 'AUD/USD', category: 'Forex', type: 'Forex', basePrice: 0.6650, precision: 5, flag1: '🇦🇺', flag2: '🇺🇸' },
+  { id: 'USD/CAD', name: 'USD/CAD', category: 'Forex', type: 'Forex', basePrice: 1.3660, precision: 5, flag1: '🇺🇸', flag2: '🇨🇦' },
+  { id: 'USD/JPY', name: 'USD/JPY', category: 'Forex', type: 'Forex', basePrice: 157.40, precision: 3, flag1: '🇺🇸', flag2: '🇯🇵' },
+  // Crypto
+  { id: 'Bitcoin', name: 'Bitcoin', category: 'Crypto', type: 'Crypto', basePrice: 65000, precision: 2, icon: Bitcoin },
+  { id: 'Ethereum', name: 'Ethereum', category: 'Crypto', type: 'Crypto', basePrice: 3500, precision: 2, icon: Gem },
+  { id: 'Ripple', name: 'Ripple', category: 'Crypto', type: 'Crypto', basePrice: 0.49, precision: 4, icon: CircleDollarSign },
+  { id: 'Litecoin', name: 'Litecoin', category: 'Crypto', type: 'Crypto', basePrice: 74, precision: 2, icon: Lightbulb },
+  { id: 'Solana', name: 'Solana', category: 'Crypto', type: 'Crypto', basePrice: 145, precision: 2, icon: Waves },
 ];
+
 
 const generateRandomPriceMovement = (currentPrice: number, direction: 'buy' | 'sell' | null, basePrice: number): number => {
     const volatilityFactor = 0.00015;
     
     let movement;
     if (direction === 'buy') {
-        // More likely to go up. We shift the random distribution upwards.
-        movement = (Math.random() - 0.45) + (Math.random() * 0.1 - 0.05); // Natural fluctuation
+        movement = (Math.random() - 0.45) * 0.5 + (Math.random() * 0.05);
     } else if (direction === 'sell') {
-        // More likely to go down. We shift the random distribution downwards.
-        movement = (Math.random() - 0.55) + (Math.random() * 0.1 - 0.05); // Natural fluctuation
+        movement = (Math.random() - 0.55) * 0.5 - (Math.random() * 0.05);
     } else {
         movement = (Math.random() - 0.5);
     }
@@ -78,7 +103,9 @@ export default function TradeSim() {
     setHasMounted(true);
   }, []);
 
-  const activePair = currencyPairs.find(p => p.id === activePairId)!;
+  const [isAssetSelectorOpen, setIsAssetSelectorOpen] = useState(false);
+  
+  const activePair = allCurrencyPairs.find(p => p.id === activePairId)!;
 
   const resolveTrade = useCallback(() => {
     if (!tradeDetails) return;
@@ -343,6 +370,26 @@ export default function TradeSim() {
     }
     setActivePairId(pairId);
   };
+  
+  const handleAddPair = (pairId: string) => {
+    if (!openPairs.includes(pairId)) {
+        setOpenPairs(prev => [...prev, pairId]);
+    }
+    setActivePairId(pairId);
+  };
+
+  const handleRemovePair = (e: React.MouseEvent, pairId: string) => {
+      e.stopPropagation(); 
+      if (openPairs.length <= 1) return; 
+
+      const newOpenPairs = openPairs.filter(id => id !== pairId);
+      setOpenPairs(newOpenPairs);
+      
+      if (activePairId === pairId) {
+          setActivePairId(newOpenPairs[0]);
+      }
+  };
+
 
   const currentChart = chartData[activePairId] || [];
   const currentPrice = currentChart.length > 0 ? currentChart[currentChart.length - 1].c : null;
@@ -352,7 +399,19 @@ export default function TradeSim() {
       {/* Left Sidebar */}
       <aside className="w-16 hidden md:flex flex-none flex-col items-center space-y-2 bg-[#1e222d] py-4 border-r border-border">
         <Button variant="ghost" size="icon"><Menu className="h-5 w-5" /></Button>
-        <Button variant="ghost" size="icon"><Plus className="h-5 w-5" /></Button>
+         <Dialog open={isAssetSelectorOpen} onOpenChange={setIsAssetSelectorOpen}>
+            <DialogTrigger asChild>
+                <Button variant="ghost" size="icon"><Plus className="h-5 w-5" /></Button>
+            </DialogTrigger>
+            <DialogContent className="p-0 max-w-4xl bg-transparent border-0 shadow-none">
+                <AssetSelector 
+                    allPairs={allCurrencyPairs}
+                    openPairs={openPairs}
+                    onSelectPair={handleAddPair}
+                    onClose={() => setIsAssetSelectorOpen(false)}
+                />
+            </DialogContent>
+        </Dialog>
         <Separator className="!bg-border/50 my-2" />
         <nav className="flex flex-col space-y-2 items-center">
           <Button variant="ghost" size="icon"><Briefcase className="h-5 w-5" /></Button>
@@ -372,7 +431,7 @@ export default function TradeSim() {
                 <LayoutGrid className="h-5 w-5" />
             </Button>
             {openPairs.map(pairId => {
-                const pair = currencyPairs.find(p => p.id === pairId);
+                const pair = allCurrencyPairs.find(p => p.id === pairId);
                 if (!pair) return null;
                 const isActive = activePairId === pairId;
                 return (
@@ -394,15 +453,27 @@ export default function TradeSim() {
                             <span className="text-xs font-semibold">{pair.name}</span>
                             <span className="text-xs text-muted-foreground">{pair.type}</span>
                         </div>
-                        <Button variant="ghost" size="icon" className="absolute top-0 right-0 h-4 w-4 text-muted-foreground hover:text-foreground">
+                        <Button variant="ghost" size="icon" className="absolute top-0 right-0 h-4 w-4 text-muted-foreground hover:text-foreground" onClick={(e) => handleRemovePair(e, pair.id)}>
                             <X className="h-3 w-3" />
                         </Button>
                     </div>
                 )
             })}
-            <Button variant="ghost" size="icon" className="border border-border/50 h-10 w-10">
-                <Plus className="h-5 w-5" />
-            </Button>
+             <Dialog open={isAssetSelectorOpen} onOpenChange={setIsAssetSelectorOpen}>
+                <DialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="border border-border/50 h-10 w-10">
+                        <Plus className="h-5 w-5" />
+                    </Button>
+                </DialogTrigger>
+                <DialogContent className="p-0 max-w-4xl bg-transparent border-0 shadow-none">
+                    <AssetSelector 
+                        allPairs={allCurrencyPairs}
+                        openPairs={openPairs}
+                        onSelectPair={handleAddPair}
+                        onClose={() => setIsAssetSelectorOpen(false)}
+                    />
+                </DialogContent>
+            </Dialog>
         </div>
         
         {/* Chart Area */}

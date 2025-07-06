@@ -101,6 +101,10 @@ export default {
           '20%, 80%': { opacity: '1', transform: 'translateY(0) scale(1)' },
           '100%': { opacity: '0', transform: 'translateY(-20px) scale(0.8)' },
         },
+        'chat-bubble-in': {
+          'from': { opacity: '0', transform: 'translateX(-10px) scale(0.95)' },
+          'to': { opacity: '1', transform: 'translateX(0) scale(1)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -108,6 +112,7 @@ export default {
         'fade-in': 'fade-in 0.5s ease-out forwards',
         'pulse': 'pulse 0.5s ease-in-out',
         'result-pop': 'result-pop 2s ease-in-out forwards',
+        'chat-bubble-in': 'chat-bubble-in 0.3s ease-out forwards',
       },
     },
   },

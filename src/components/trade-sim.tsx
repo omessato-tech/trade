@@ -100,6 +100,7 @@ export default function TradeSim() {
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryItem[]>([]);
 
   const [prediction, setPrediction] = useState<{ visible: boolean; type: 'buy' | 'sell'; amount: number; percentage: number; countdown: number; } | null>(null);
+  const [isPredictionMinimized, setIsPredictionMinimized] = useState(false);
   const [predictionDirection, setPredictionDirection] = useState<'buy' | 'sell' | null>(null);
   const [isProMode, setIsProMode] = useState(false);
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
@@ -345,6 +346,7 @@ export default function TradeSim() {
                     percentage: predictionPercentage,
                     countdown: 5,
                 });
+                setIsPredictionMinimized(false);
                 if (isSoundEnabled) {
                   notificationSoundRef.current?.play().catch(error => console.error("Notification audio play failed", error));
                 }
@@ -581,52 +583,74 @@ export default function TradeSim() {
                 </div>
             )}
             
-          {/* Prediction Card */}
+          {/* Prediction Chat Bubble */}
           {prediction?.visible && (
             <div className="absolute bottom-4 left-4 z-30 w-full max-w-xs animate-fade-in">
-              <div className="flex items-start gap-3">
-                <Avatar className="h-10 w-10 border-2 border-primary mt-2">
-                  <AvatarImage src="https://i.imgur.com/1yOxxAY.png" alt="DETONA 7" />
-                  <AvatarFallback>D7</AvatarFallback>
-                </Avatar>
-                <Card className="flex-1 bg-background/80 backdrop-blur-sm border-primary shadow-lg shadow-primary/20">
-                    <CardHeader className="p-3">
-                        <CardTitle className="flex items-center justify-between gap-2 text-primary text-base">
-                            <span>DETONA 7</span>
-                            <span className="text-xs font-normal text-muted-foreground">{prediction.countdown}s</span>
-                        </CardTitle>
-                        <CardDescription className="text-xs">Oportunidade em {activePair.name}!</CardDescription>
-                    </CardHeader>
-                    <CardContent className="text-center p-3 pt-0">
-                        <p className="text-sm font-bold">
-                            {`Entrada: ${prediction.percentage}% da banca`}
-                        </p>
-                        <p className="text-base font-bold uppercase">
-                            {`${prediction.type === 'buy' ? 'COMPRE' : 'VENDA'} sem GALE`}
-                        </p>
-                    </CardContent>
-                    <CardFooter className="flex flex-col gap-2 p-3 pt-0">
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button size="sm" className="w-full bg-primary hover:bg-primary/90">SEGUIR SINAL</Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Confirmar Entrada?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        Você está prestes a fazer uma entrada de {prediction.type === 'buy' ? 'COMPRA' : 'VENDA'} em {activePair.name} no valor de R$ {prediction.amount.toFixed(2)}. Esta ação é baseada na previsão "DETONA 7".
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel onClick={() => setPrediction(null)}>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleFollowPrediction}>Confirmar e Entrar</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                        <Button size="sm" variant="outline" className="w-full" onClick={() => setPrediction(null)}>Ignorar</Button>
-                    </CardFooter>
-                </Card>
-              </div>
+                <div className="flex items-end gap-3">
+                    <button
+                        onClick={() => setIsPredictionMinimized(p => !p)}
+                        className="group rounded-full transition-transform duration-300 ease-out hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                        <Avatar className={cn(
+                            "h-12 w-12 border-2 border-primary shadow-lg",
+                            !isPredictionMinimized && "opacity-80 group-hover:opacity-100"
+                        )}>
+                            <AvatarImage src="https://i.imgur.com/1yOxxAY.png" alt="DETONA 7" />
+                            <AvatarFallback>D7</AvatarFallback>
+                        </Avatar>
+                    </button>
+
+                    {!isPredictionMinimized && (
+                       <div className="animate-chat-bubble-in origin-bottom-left">
+                            <Card className="relative w-full bg-background/80 backdrop-blur-sm border-primary shadow-lg shadow-primary/20">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="absolute top-1 right-1 h-6 w-6 text-muted-foreground hover:text-foreground"
+                                    onClick={() => setIsPredictionMinimized(true)}
+                                >
+                                    <X className="h-4 w-4" />
+                                    <span className="sr-only">Minimizar</span>
+                                </Button>
+                                <CardHeader className="p-3 pr-8">
+                                    <CardTitle className="flex items-center justify-between gap-2 text-primary text-base">
+                                        <span>DETONA 7</span>
+                                        <span className="text-xs font-normal text-muted-foreground">{prediction.countdown}s</span>
+                                    </CardTitle>
+                                    <CardDescription className="text-xs">Oportunidade em {activePair.name}!</CardDescription>
+                                </CardHeader>
+                                <CardContent className="text-center p-3 pt-0">
+                                    <p className="text-sm font-bold">
+                                        {`Entrada: ${prediction.percentage}% da banca`}
+                                    </p>
+                                    <p className="text-base font-bold uppercase">
+                                        {`${prediction.type === 'buy' ? 'COMPRE' : 'VENDA'} sem GALE`}
+                                    </p>
+                                </CardContent>
+                                <CardFooter className="flex flex-col gap-2 p-3 pt-0">
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button size="sm" className="w-full bg-primary hover:bg-primary/90">SEGUIR SINAL</Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Confirmar Entrada?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Você está prestes a fazer uma entrada de {prediction.type === 'buy' ? 'COMPRA' : 'VENDA'} em {activePair.name} no valor de R$ {prediction.amount.toFixed(2)}. Esta ação é baseada na previsão "DETONA 7".
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                <AlertDialogAction onClick={handleFollowPrediction}>Confirmar e Entrar</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                    <Button size="sm" variant="outline" className="w-full" onClick={() => setPrediction(null)}>Ignorar</Button>
+                                </CardFooter>
+                            </Card>
+                        </div>
+                    )}
+                </div>
             </div>
           )}
 

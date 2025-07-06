@@ -451,7 +451,7 @@ export default function TradeSim() {
         {/* Currency Pair Selector */}
         <div className="flex-none flex items-center gap-1 p-1 bg-[#1e222d] border-b border-border overflow-x-auto no-scrollbar">
             <div className="flex items-center justify-center h-10 px-2 shrink-0">
-                <Image src="https://i.imgur.com/7muedyE.png" alt="TradeSim Logo" width={80} height={24} className="object-contain" />
+                <Image src="https://i.imgur.com/7muedyE.png" alt="TradeSim Logo" width={120} height={36} className="object-contain" />
             </div>
             {openPairs.map(pairId => {
                 const pair = allCurrencyPairs.find(p => p.id === pairId);

@@ -374,24 +374,26 @@ export default function TradeSim() {
 
   // Prediction Countdown Logic
   useEffect(() => {
-    if (!predictions.some(p => p.status === 'active')) return;
-
-    const timer = setTimeout(() => {
-      setPredictions(prevPredictions => 
-        prevPredictions.map(p => {
-          if (p.status === 'active' && p.countdown > 0) {
-            return { ...p, countdown: p.countdown - 1 };
-          }
-          if (p.status === 'active' && p.countdown === 0) {
-            return { ...p, status: 'expired' }; 
-          }
-          return p;
-        })
-      );
+    const timer = setInterval(() => {
+        setPredictions(prevPredictions => {
+            let hasChanged = false;
+            const newPredictions = prevPredictions.map(p => {
+                if (p.status === 'active' && p.countdown > 0) {
+                    hasChanged = true;
+                    return { ...p, countdown: p.countdown - 1 };
+                }
+                if (p.status === 'active' && p.countdown === 0) {
+                    hasChanged = true;
+                    return { ...p, status: 'expired' };
+                }
+                return p;
+            });
+            return hasChanged ? newPredictions : prevPredictions;
+        });
     }, 1000);
 
-    return () => clearTimeout(timer);
-  }, [predictions]);
+    return () => clearInterval(timer);
+  }, []);
 
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {

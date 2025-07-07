@@ -128,6 +128,14 @@ export default function TradeSim() {
   
   const activePair = allCurrencyPairs.find(p => p.id === activePairId)!;
 
+  // Draggable chat state
+  const [chatPosition, setChatPosition] = useState<{top: number, left: number} | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const chatWrapperRef = useRef<HTMLDivElement>(null);
+  const chartAreaRef = useRef<HTMLElement>(null);
+
+
   const resolveTrade = useCallback(() => {
     if (!tradeDetails) return;
 
@@ -374,26 +382,96 @@ export default function TradeSim() {
 
   // Prediction Countdown Logic
   useEffect(() => {
-    const timer = setInterval(() => {
-        setPredictions(prevPredictions => {
-            let hasChanged = false;
-            const newPredictions = prevPredictions.map(p => {
-                if (p.status === 'active' && p.countdown > 0) {
-                    hasChanged = true;
-                    return { ...p, countdown: p.countdown - 1 };
-                }
-                if (p.status === 'active' && p.countdown === 0) {
-                    hasChanged = true;
-                    return { ...p, status: 'expired' };
-                }
-                return p;
-            });
-            return hasChanged ? newPredictions : prevPredictions;
-        });
-    }, 1000);
+      const timer = setInterval(() => {
+          setPredictions(prevPredictions => {
+              let hasChanged = false;
+              const newPredictions = prevPredictions.map(p => {
+                  if (p.status === 'active' && p.countdown > 0) {
+                      hasChanged = true;
+                      return { ...p, countdown: p.countdown - 1 };
+                  }
+                  if (p.status === 'active' && p.countdown === 0) {
+                      hasChanged = true;
+                      return { ...p, status: 'expired' };
+                  }
+                  return p;
+              });
+              if (hasChanged) {
+                  return newPredictions;
+              }
+              return prevPredictions;
+          });
+      }, 1000);
 
-    return () => clearInterval(timer);
+      return () => clearInterval(timer);
   }, []);
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!chatWrapperRef.current || !chartAreaRef.current) return;
+    setIsDragging(true);
+
+    const chatRect = chatWrapperRef.current.getBoundingClientRect();
+    const chartAreaRect = chartAreaRef.current.getBoundingClientRect();
+    
+    // If first drag, set position state from current CSS-based position
+    const currentPos = chatPosition || {
+      top: chatRect.top - chartAreaRect.top,
+      left: chatRect.left - chartAreaRect.left
+    };
+    
+    dragOffset.current = {
+      x: e.clientX - chatRect.left,
+      y: e.clientY - chatRect.top,
+    };
+
+    // Switch to state-based positioning if not already
+    if (!chatPosition) {
+      setChatPosition(currentPos);
+    }
+    
+    e.preventDefault();
+  };
+  
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging || !chartAreaRef.current || !chatWrapperRef.current) return;
+
+    const chartAreaRect = chartAreaRef.current.getBoundingClientRect();
+    const chatRect = chatWrapperRef.current.getBoundingClientRect();
+    
+    let newLeft = e.clientX - dragOffset.current.x;
+    let newTop = e.clientY - dragOffset.current.y;
+    
+    // Constrain to chart area boundaries (relative to viewport)
+    newLeft = Math.max(chartAreaRect.left, newLeft);
+    newTop = Math.max(chartAreaRect.top, newTop);
+    newLeft = Math.min(chartAreaRect.right - chatRect.width, newLeft);
+    newTop = Math.min(chartAreaRect.bottom - chatRect.height, newTop);
+
+    // Set position relative to the chart area
+    setChatPosition({
+      top: newTop - chartAreaRect.top,
+      left: newLeft - chartAreaRect.left,
+    });
+  }, [isDragging]);
+
+  useEffect(() => {
+    const mouseMoveHandler = (e: MouseEvent) => handleMouseMove(e);
+    const mouseUpHandler = () => handleMouseUp();
+
+    if (isDragging) {
+      document.addEventListener('mousemove', mouseMoveHandler);
+      document.addEventListener('mouseup', mouseUpHandler);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', mouseMoveHandler);
+      document.removeEventListener('mouseup', mouseUpHandler);
+    };
+  }, [isDragging, handleMouseMove]);
 
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -586,7 +664,7 @@ export default function TradeSim() {
         </div>
         
         {/* Chart Area */}
-        <main className="flex-1 relative flex flex-col">
+        <main ref={chartAreaRef} className="flex-1 relative flex flex-col">
             <div className="absolute inset-0 bg-[url('https://imgur.com/jCWkgEv.png')] bg-cover bg-center bg-no-repeat brightness-50 z-0"></div>
             {tradeDetails && tradeDetails.pairId === activePairId && countdown !== null && (
                 <div className="absolute top-2 left-2 md:top-4 md:left-4 z-20 flex flex-col md:flex-row items-start md:items-center gap-2 md:gap-8 bg-black/50 px-2 py-1 md:px-4 md:py-2 rounded-lg backdrop-blur-sm font-mono">
@@ -618,11 +696,22 @@ export default function TradeSim() {
             )}
             
           {/* Prediction Chat */}
-          <div className="absolute bottom-4 left-4 z-30 w-full max-w-sm">
+          <div
+            ref={chatWrapperRef}
+            className="absolute z-30 w-full max-w-sm"
+            style={
+              chatPosition
+                ? { top: chatPosition.top, left: chatPosition.left, bottom: 'auto', right: 'auto' }
+                : { bottom: '1rem', left: '1rem' }
+            }
+          >
             <div className="flex flex-col items-end gap-2">
                 {!isChatMinimized && (
                     <Card className="w-full bg-background/80 backdrop-blur-sm border-primary shadow-lg shadow-primary/20 animate-fade-in">
-                        <CardHeader className="flex flex-row items-center justify-between p-3 bg-primary text-primary-foreground rounded-t-lg">
+                        <CardHeader 
+                          className="flex flex-row items-center justify-between p-3 bg-primary text-primary-foreground rounded-t-lg cursor-move"
+                          onMouseDown={handleMouseDown}
+                        >
                             <div className="flex items-center gap-3">
                                 <Avatar className="h-10 w-10 border-2 border-white/50">
                                     <AvatarImage src="https://i.imgur.com/1yOxxAY.png" alt="DETONA 7" />

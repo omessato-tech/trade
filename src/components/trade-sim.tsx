@@ -23,6 +23,8 @@ import { TradeHistoryPanel } from './trade-history-panel';
 import type { TradeHistoryItem } from './trade-history-panel';
 import { ScrollArea } from './ui/scroll-area';
 import { AchievementsPanel } from './achievements-panel';
+import { TutorialGuide, type TutorialStep } from './tutorial-guide';
+
 
 const timeframes = ['5s', '30s', '1m', '5m'];
 const timeframeDurations: { [key: string]: number } = {
@@ -147,6 +149,15 @@ export default function TradeSim() {
   const dragOffset = useRef({ x: 0, y: 0 });
   const chatWrapperRef = useRef<HTMLDivElement>(null);
   const chartAreaRef = useRef<HTMLElement>(null);
+
+  // Refs for tutorial
+  const buyButtonRef = useRef<HTMLButtonElement>(null);
+  const sellButtonRef = useRef<HTMLButtonElement>(null);
+  const proModeButtonRef = useRef<HTMLButtonElement>(null);
+  const historyButtonRef = useRef<HTMLDivElement>(null);
+  const achievementsButtonRef = useRef<HTMLDivElement>(null);
+  const predictionsChatRef = useRef<HTMLDivElement>(null);
+  const [isTutorialOpen, setIsTutorialOpen] = useState(false);
 
   // Sound setup
   useEffect(() => {
@@ -642,8 +653,66 @@ export default function TradeSim() {
       state: t.profitState,
   }));
 
+  // Tutorial Logic
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+        const tutorialSeen = localStorage.getItem('tradeSimTutorialSeen');
+        if (!tutorialSeen) {
+            setTimeout(() => setIsTutorialOpen(true), 1000);
+        }
+    }
+  }, []);
+
+  const handleTutorialComplete = () => {
+      if (typeof window !== 'undefined') {
+          localStorage.setItem('tradeSimTutorialSeen', 'true');
+      }
+      setIsTutorialOpen(false);
+  };
+
+  const tutorialSteps: TutorialStep[] = [
+    {
+        ref: buyButtonRef,
+        title: 'Botão de Compra (Subir)',
+        content: 'Use este botão para abrir uma operação de COMPRA. Você lucra se o preço do ativo SUBIR acima do preço de entrada quando o tempo acabar.',
+        placement: 'left',
+    },
+    {
+        ref: sellButtonRef,
+        title: 'Botão de Venda (Descer)',
+        content: 'Use este botão para abrir uma operação de VENDA. Você lucra se o preço do ativo DESCER abaixo do preço de entrada quando o tempo acabar.',
+        placement: 'left',
+    },
+    {
+        ref: proModeButtonRef,
+        title: 'Modo Pro',
+        content: 'Ative o "Modo Pro" para receber sinais de entrada com maior risco e potencial de lucro. Use com sabedoria!',
+        placement: 'top',
+    },
+    {
+        ref: achievementsButtonRef,
+        title: 'Central de Conquistas',
+        content: 'Aqui você pode acompanhar seus ranks e conquistas. Quanto mais vitórias, mais alto seu rank!',
+        placement: 'right',
+    },
+    {
+        ref: historyButtonRef,
+        title: 'Histórico de Trades',
+        content: 'Consulte todos os seus trades passados, tanto as vitórias quanto as derrotas, para analisar sua performance.',
+        placement: 'right',
+    },
+    {
+        ref: predictionsChatRef,
+        title: 'Sinais de Entrada (IA)',
+        content: 'Fique de olho! Nossa IA envia sinais de oportunidade aqui. Você pode escolher seguir ou ignorar as sugestões.',
+        placement: 'right',
+        spotlightPadding: 0,
+    },
+  ];
+
   return (
     <div className="flex md:flex-row flex-col h-screen w-full bg-background text-sm text-foreground font-body">
+      {isTutorialOpen && <TutorialGuide steps={tutorialSteps} onComplete={handleTutorialComplete} isOpen={isTutorialOpen} />}
       <AlertDialog open={!!rankUpInfo} onOpenChange={(open) => { if (!open) setRankUpInfo(null); }}>
           <AlertDialogContent className="bg-gradient-to-br from-[#2a2a3a] to-[#1a1a2a] border-primary/50 text-white">
               <AlertDialogHeader>
@@ -691,8 +760,12 @@ export default function TradeSim() {
         <Separator className="!bg-border/50 my-2" />
         <nav className="flex flex-col space-y-2 items-center">
           <Button variant="ghost" size="icon"><Briefcase className="h-5 w-5" /></Button>
-          <TradeHistoryPanel history={tradeHistory} allPairs={allCurrencyPairs} />
-          <AchievementsPanel winCount={winCount} achievements={achievements} />
+          <div ref={historyButtonRef} className="inline-block">
+            <TradeHistoryPanel history={tradeHistory} allPairs={allCurrencyPairs} />
+          </div>
+          <div ref={achievementsButtonRef} className="inline-block">
+            <AchievementsPanel winCount={winCount} achievements={achievements} />
+          </div>
           <Button variant="ghost" size="icon"><Megaphone className="h-5 w-5" /></Button>
           <Button variant="ghost" size="icon"><PlayCircle className="h-5 w-5" /></Button>
           <Button variant="ghost" size="icon"><MessageCircle className="h-5 w-5" /></Button>
@@ -802,7 +875,7 @@ export default function TradeSim() {
             
           {/* Prediction Chat */}
           <div
-            ref={chatWrapperRef}
+            ref={predictionsChatRef}
             className="absolute z-30 w-full max-w-sm"
             style={
               chatPosition
@@ -994,7 +1067,7 @@ export default function TradeSim() {
             </div>
 
             <div className="flex flex-1 md:flex-initial flex-row md:flex-col gap-3 md:mt-auto">
-                <Button size="lg" className="h-auto flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2 disabled:opacity-50" onClick={() => handleTrade('buy', tradeAmount)}>
+                <Button ref={buyButtonRef} size="lg" className="h-auto flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2 disabled:opacity-50" onClick={() => handleTrade('buy', tradeAmount)}>
                     <div className="flex items-center justify-between w-full">
                         <ArrowUpRight className="h-6 w-6" />
                         <div className="flex flex-col items-end">
@@ -1007,7 +1080,7 @@ export default function TradeSim() {
                     <p className="text-muted-foreground">SPREAD</p>
                     <p className="text-white">92.2</p>
                 </div>
-                <Button size="lg" className="h-auto flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground py-2 disabled:opacity-50" onClick={() => handleTrade('sell', tradeAmount)}>
+                <Button ref={sellButtonRef} size="lg" className="h-auto flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground py-2 disabled:opacity-50" onClick={() => handleTrade('sell', tradeAmount)}>
                     <div className="flex items-center justify-between w-full">
                         <ArrowDownLeft className="h-6 w-6" />
                         <div className="flex flex-col items-end">
@@ -1020,6 +1093,7 @@ export default function TradeSim() {
         </div>
         <div className="flex flex-col items-center justify-center gap-2 pt-3 border-t border-border/50">
             <button
+                ref={proModeButtonRef}
                 onClick={handleToggleProMode}
                 className="group rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >

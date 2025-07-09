@@ -9,9 +9,8 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { cn } from '@/lib/utils';
 import { 
-    Plus, Briefcase, History, Megaphone, PlayCircle, MessageCircle, MoreHorizontal, 
-    Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, Bitcoin, X,
-    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy, Award, Medal, Menu, Settings, Minus, Palette
+    Plus, History, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, Bitcoin, X,
+    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy, Award, Medal, Menu, Minus, Palette
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
@@ -117,7 +116,6 @@ export default function TradeSim() {
   const [activeTimeframe, setActiveTimeframe] = useState('5s');
   const [tradeAmount, setTradeAmount] = useState(1);
   const [tradeDuration, setTradeDuration] = useState(30);
-  const [stopOffset, setStopOffset] = useState(150);
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [visibleResults, setVisibleResults] = useState<TradeHistoryItem[]>([]);
   
@@ -565,14 +563,6 @@ export default function TradeSim() {
     setTradeAmount(Math.max(1, value || 1));
   };
 
-  const handleStopOffsetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.valueAsNumber;
-    setStopOffset(Math.max(0, value || 0));
-  };
-  
-  const handleIncrementStopOffset = () => setStopOffset(prev => prev + 50);
-  const handleDecrementStopOffset = () => setStopOffset(prev => Math.max(0, prev - 50));
-
   const handleIncrementAmount = () => setTradeAmount(prev => prev + 1);
   const handleDecrementAmount = () => setTradeAmount(prev => Math.max(1, prev - 1));
 
@@ -926,15 +916,6 @@ export default function TradeSim() {
                                     </DropdownMenuRadioGroup>
                                 </DropdownMenuContent>
                               </DropdownMenu>
-                              <Button variant="ghost" className="justify-start gap-2 px-3">
-                                <Megaphone className="h-5 w-5" /> Notícias
-                              </Button>
-                              <Button variant="ghost" className="justify-start gap-2 px-3">
-                                <PlayCircle className="h-5 w-5" /> Tutoriais
-                              </Button>
-                              <Button variant="ghost" className="justify-start gap-2 px-3">
-                                <MessageCircle className="h-5 w-5" /> Suporte
-                              </Button>
                               <Button variant="ghost" className="justify-start gap-2 px-3" onClick={() => setIsSoundEnabled(prev => !prev)}>
                                 {isSoundEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
                                 {isSoundEnabled ? 'Desativar Som' : 'Ativar Som'}
@@ -943,10 +924,7 @@ export default function TradeSim() {
                           <Separator className="my-2 bg-border/50" />
                           <div className="p-2 space-y-4">
                               <h3 className="px-3 font-semibold text-muted-foreground">Gráfico</h3>
-                              <div className="flex items-center justify-around gap-2">
-                                  <Button variant="ghost" className="flex-col h-auto gap-1"><Info className="h-5 w-5" /><span className="text-xs">Info</span></Button>
-                                  <Button variant="ghost" className="flex-col h-auto gap-1"><Bell className="h-5 w-5" /><span className="text-xs">Alertas</span></Button>
-                                  <Button variant="ghost" className="flex-col h-auto gap-1"><CandlestickChart className="h-5 w-5" /><span className="text-xs">Tipo</span></Button>
+                              <div className="flex items-center justify-center gap-2">
                                   <Button variant="ghost" className="flex-col h-auto gap-1" onClick={() => { handleZoom(); setIsMobileMenuOpen(false); }}><ZoomIn className="h-5 w-5" /><span className="text-xs">Zoom</span></Button>
                               </div>
                               <div className="space-y-2">
@@ -1229,9 +1207,6 @@ export default function TradeSim() {
         {/* Bottom Toolbar */}
         <footer className="hidden md:flex flex-none items-center justify-between p-2 bg-[#1e222d] border-t border-border">
             <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon"><Info className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="icon"><Bell className="h-4 w-4" /></Button>
-                <Button variant="ghost" size="icon"><CandlestickChart className="h-4 w-4" /></Button>
                 <Button variant="ghost" size="icon" onClick={handleZoom}><ZoomIn className="h-4 w-4" /></Button>
             </div>
             <div className="flex items-center gap-1 text-xs">

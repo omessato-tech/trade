@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { 
     Plus, Briefcase, History, Megaphone, PlayCircle, MessageCircle, MoreHorizontal, 
     Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, Bitcoin, X,
-    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy, Award, Medal, Menu
+    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy, Award, Medal, Menu, Settings
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
@@ -736,7 +736,7 @@ export default function TradeSim() {
           setShowFirstMilestone(true);
         }
       }}>
-          <AlertDialogContent className="bg-transparent border-0 p-0 w-auto shadow-none focus-visible:ring-0 focus-visible:ring-offset-0">
+          <AlertDialogContent className="bg-transparent border-0 p-0 w-full max-w-[90vw] lg:max-w-2xl shadow-none focus-visible:ring-0 focus-visible:ring-offset-0">
                <AlertDialogHeader className="sr-only">
                   <AlertDialogTitle>Primeira Operação Concluída!</AlertDialogTitle>
                   <AlertDialogDescription>Parabéns por completar sua primeira operação. Você está no caminho certo!</AlertDialogDescription>
@@ -763,7 +763,7 @@ export default function TradeSim() {
       </AlertDialog>
 
       <AlertDialog open={showSecondMilestone} onOpenChange={setShowSecondMilestone}>
-          <AlertDialogContent className="bg-transparent border-0 p-0 w-auto shadow-none focus-visible:ring-0 focus-visible:ring-offset-0">
+          <AlertDialogContent className="bg-transparent border-0 p-0 w-full max-w-[90vw] lg:max-w-2xl shadow-none focus-visible:ring-0 focus-visible:ring-offset-0">
                <AlertDialogHeader className="sr-only">
                   <AlertDialogTitle>Você é um Mestre Trader!</AlertDialogTitle>
                   <AlertDialogDescription>Continue assim e domine o mercado. Sua jornada está apenas começando.</AlertDialogDescription>
@@ -1286,3 +1286,5 @@ export default function TradeSim() {
     </div>
   );
 }
+
+    

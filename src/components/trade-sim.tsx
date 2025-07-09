@@ -9,8 +9,8 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { cn } from '@/lib/utils';
 import { 
-    Menu, Plus, Briefcase, History, Megaphone, PlayCircle, MessageCircle, MoreHorizontal, 
-    Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, LayoutGrid, Bitcoin, X,
+    Plus, Briefcase, History, Megaphone, PlayCircle, MessageCircle, MoreHorizontal, 
+    Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, Bitcoin, X,
     Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy, Award, Medal
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
@@ -130,6 +130,10 @@ export default function TradeSim() {
   const [winCount, setWinCount] = useState(0);
   const [rankUpInfo, setRankUpInfo] = useState<{ rank: Achievement; nextRank?: Achievement } | null>(null);
   const prevWinCountRef = useRef<number>(winCount);
+  const [milestonePopup, setMilestonePopup] = useState<{ isOpen: boolean; imageUrl: string | null }>({
+    isOpen: false,
+    imageUrl: null,
+  });
 
   const [predictions, setPredictions] = useState<PredictionMessage[]>([]);
   const [isChatMinimized, setIsChatMinimized] = useState(true);
@@ -282,14 +286,23 @@ export default function TradeSim() {
   useEffect(() => {
     const tradeTimer = setInterval(() => {
         const trades = activeTradesRef.current;
-        if (!trades) return;
+        if (!trades || trades.length === 0) {
+            // Ensure heartbeat stops if there are no trades
+            if (isSoundEnabled && heartbeatSoundRef.current && !heartbeatSoundRef.current.paused) {
+                heartbeatSoundRef.current.pause();
+                heartbeatSoundRef.current.currentTime = 0;
+            }
+            return;
+        }
 
         let needsHeartbeat = false;
         
-        const updatedTrades = trades.map(trade => {
+        // Update countdowns and profit states first
+        const updatedTradesWithProfitState = trades.map(trade => {
             if (trade.countdown <= 1) {
-                return trade;
+                return trade; // This trade will be resolved below
             }
+
             const currentPairChartData = chartDataRef.current?.[trade.pairId];
             let newProfitState = trade.profitState;
 
@@ -298,18 +311,19 @@ export default function TradeSim() {
                 newProfitState = ((trade.type === 'buy' && currentPrice > trade.entryPrice) || (trade.type === 'sell' && currentPrice < trade.entryPrice))
                     ? 'profit' : 'loss';
             }
-            if (newProfitState === 'loss') needsHeartbeat = true;
+            if (newProfitState === 'loss') {
+                needsHeartbeat = true;
+            }
 
             return { ...trade, countdown: trade.countdown - 1, profitState: newProfitState };
         });
 
-        const tradesToResolve = updatedTrades.filter(t => t.countdown <= 1);
-        const stillActive = updatedTrades.filter(t => t.countdown > 1);
+        const tradesToResolve = updatedTradesWithProfitState.filter(t => t.countdown <= 1);
+        const stillActiveTrades = updatedTradesWithProfitState.filter(t => t.countdown > 1);
 
-        setActiveTrades(stillActive);
-        
+        // Resolve trades that have finished
         if (tradesToResolve.length > 0) {
-            let balanceChange = 0;
+            let totalBalanceChange = 0;
             let winsToAdd = 0;
             const newHistoryItems: TradeHistoryItem[] = [];
 
@@ -329,7 +343,7 @@ export default function TradeSim() {
         
                 if (isWin) {
                     winsToAdd++;
-                    balanceChange += amount + winAmount; // Return initial investment + profit
+                    totalBalanceChange += amount + winAmount; // Return initial investment + profit
                     if (isSoundEnabled) gainSoundRef.current?.play().catch(console.error);
                 } else {
                     if (isSoundEnabled) lossSoundRef.current?.play().catch(console.error);
@@ -349,14 +363,17 @@ export default function TradeSim() {
                 newHistoryItems.push(newHistoryItem);
             });
             
+            // Batch state updates
             if (newHistoryItems.length > 0) {
-                setBalance(prev => prev + balanceChange);
+                setBalance(prev => prev + totalBalanceChange);
                 setWinCount(prev => prev + winsToAdd);
                 setTradeHistory(prev => [...newHistoryItems, ...prev]);
                 setVisibleResults(prev => [...newHistoryItems, ...prev].slice(0, 5));
             }
         }
-        
+
+        // Update active trades list and heartbeat sound
+        setActiveTrades(stillActiveTrades);
         if (isSoundEnabled) {
             if (needsHeartbeat && heartbeatSoundRef.current?.paused) {
                 heartbeatSoundRef.current.play().catch(console.error);
@@ -370,14 +387,21 @@ export default function TradeSim() {
     return () => clearInterval(tradeTimer);
   }, [isSoundEnabled]);
   
-  // Rank-up detection effect
+  // Rank-up and Milestone detection effect
   useEffect(() => {
     const previousWins = prevWinCountRef.current;
     const currentWins = winCount;
 
     if (currentWins > previousWins) {
-        const justAchievedRank = achievements.find(ach => currentWins >= ach.wins && previousWins < ach.wins);
+        // Milestone popups
+        if (currentWins === 1) {
+            setMilestonePopup({ isOpen: true, imageUrl: 'https://i.imgur.com/vwIOmX4.png' });
+        } else if (currentWins === 6) {
+            setMilestonePopup({ isOpen: true, imageUrl: 'https://i.imgur.com/vfKECma.png' });
+        }
 
+        // Rank-up logic
+        const justAchievedRank = achievements.find(ach => currentWins >= ach.wins && previousWins < ach.wins);
         if (justAchievedRank) {
             const nextRankIndex = achievements.findIndex(a => a.name === justAchievedRank.name) + 1;
             const nextRank = achievements[nextRankIndex];
@@ -703,6 +727,33 @@ export default function TradeSim() {
   return (
     <div className="flex md:flex-row flex-col h-screen w-full bg-background text-sm text-foreground font-body">
       {isTutorialOpen && <TutorialGuide steps={tutorialSteps} onComplete={handleTutorialComplete} isOpen={isTutorialOpen} />}
+      
+      <AlertDialog open={milestonePopup.isOpen} onOpenChange={(open) => { if (!open) setMilestonePopup({ isOpen: false, imageUrl: null }); }}>
+          <AlertDialogContent className="bg-transparent border-0 p-0 w-auto shadow-none focus-visible:ring-0 focus-visible:ring-offset-0">
+              {milestonePopup.imageUrl && (
+                  <div className="relative">
+                      <Image 
+                          src={milestonePopup.imageUrl}
+                          alt="Parabéns pela conquista!"
+                          width={600}
+                          height={600}
+                          className="rounded-lg object-contain"
+                      />
+                       <AlertDialogCancel asChild>
+                          <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="absolute top-2 right-2 bg-black/50 hover:bg-black/80 text-white rounded-full h-8 w-8"
+                              onClick={() => setMilestonePopup({ isOpen: false, imageUrl: null })}
+                          >
+                              <X className="h-5 w-5" />
+                          </Button>
+                      </AlertDialogCancel>
+                  </div>
+              )}
+          </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={!!rankUpInfo} onOpenChange={(open) => { if (!open) setRankUpInfo(null); }}>
           <AlertDialogContent className="bg-gradient-to-br from-[#2a2a3a] to-[#1a1a2a] border-primary/50 text-white">
               <AlertDialogHeader>
@@ -1137,3 +1188,5 @@ export default function TradeSim() {
     </div>
   );
 }
+
+    

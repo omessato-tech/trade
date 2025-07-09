@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { 
     Plus, Briefcase, History, Megaphone, PlayCircle, MessageCircle, MoreHorizontal, 
     Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, Bitcoin, X,
-    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy, Award, Medal, Menu, Settings
+    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy, Award, Medal, Menu, Settings, Minus
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
@@ -26,6 +26,8 @@ import { ScrollArea } from './ui/scroll-area';
 import { AchievementsPanel } from './achievements-panel';
 import { TutorialGuide, type TutorialStep } from './tutorial-guide';
 import type { Chart as ChartJS } from 'chart.js';
+import { Label } from './ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 
 const timeframes = ['5s', '30s', '1m', '5m'];
@@ -111,8 +113,8 @@ export default function TradeSim() {
   const [openPairs, setOpenPairs] = useState(['EUR/USD', 'EUR/JPY', 'BTC-USD', 'CHF/JPY']);
   const [chartData, setChartData] = useState<{ [key: string]: any[] }>({});
   const [activeTimeframe, setActiveTimeframe] = useState('5s');
-  const [tradeAmount, setTradeAmount] = useState(4);
-  const [leverage, setLeverage] = useState(300);
+  const [tradeAmount, setTradeAmount] = useState(1);
+  const [stopOffset, setStopOffset] = useState(150);
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [visibleResults, setVisibleResults] = useState<TradeHistoryItem[]>([]);
   
@@ -121,7 +123,6 @@ export default function TradeSim() {
   const heartbeatSoundRef = useRef<HTMLAudioElement | null>(null);
   const notificationSoundRef = useRef<HTMLAudioElement | null>(null);
   const clickSoundRef = useRef<HTMLAudioElement | null>(null);
-  const modoProSoundRef = useRef<HTMLAudioElement | null>(null);
   const rankUpSoundRef = useRef<HTMLAudioElement | null>(null);
 
   const [activeTrades, setActiveTrades] = useState<TradeDetails[]>([]);
@@ -140,7 +141,6 @@ export default function TradeSim() {
 
   const [predictions, setPredictions] = useState<PredictionMessage[]>([]);
   const [isChatMinimized, setIsChatMinimized] = useState(true);
-  const [isProMode, setIsProMode] = useState(false);
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   
   const chartDataRef = useRef<{ [key: string]: any[] }>();
@@ -164,7 +164,6 @@ export default function TradeSim() {
   // Refs for tutorial
   const buyButtonRef = useRef<HTMLButtonElement>(null);
   const sellButtonRef = useRef<HTMLButtonElement>(null);
-  const proModeButtonRef = useRef<HTMLButtonElement>(null);
   const historyButtonRef = useRef<HTMLDivElement>(null);
   const achievementsButtonRef = useRef<HTMLDivElement>(null);
   const predictionsChatRef = useRef<HTMLDivElement>(null);
@@ -176,7 +175,6 @@ export default function TradeSim() {
     lossSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/422avpg6mmh10gxzlgmtq/app-error.mp3?rlkey=eecjn7ft9w71oerkjvbpjnkl0&dl=1');
     notificationSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/z8b9x0ivjzy50lixhhien/mensagens-notificacao.mp3?rlkey=tjock8lev0b7h72agsoo4a9z3&dl=1');
     clickSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/n55rapwidqiyan35ea5h3/button_09-190435.mp3?rlkey=ok05nvpvpvljsqzxa1iewcqp6&dl=1');
-    modoProSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/dt5877jdhzsb26v6nzffh/Efeito-Sonoro-RISADA-MALIGNA.mp3?rlkey=ceai7boxregpmf38eo4lkc58t&dl=1');
     rankUpSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/ve20i62ep6lcplte69iqp/brass-fanfare-with-timpani-and-winchimes-reverberated-146260.mp3?rlkey=a68w7y4o5tdpr0ihw1uwfvlb0&dl=1');
 
     const heartbeatSound = new Audio('https://www.dropbox.com/scl/fi/o6ot3qm4qs33tnxt0l89b/Heart-Rate-Monitor.mov.mp3?rlkey=49vwh340mvpogypuv8lx3lsqn&dl=1');
@@ -432,9 +430,7 @@ export default function TradeSim() {
         if (activeTrades.length === 0 && !hasActivePrediction) {
           const predictionType = Math.random() > 0.5 ? 'buy' : 'sell';
           
-          const predictionPercentage = isProMode
-              ? Math.floor(Math.random() * 21) + 20 // 20% to 40%
-              : Math.floor(Math.random() * 11) + 10; // 10% to 20%
+          const predictionPercentage = Math.floor(Math.random() * 11) + 10; // 10% to 20%
           
           const predictionAmount = (balance * predictionPercentage) / 100;
 
@@ -459,7 +455,7 @@ export default function TradeSim() {
     }, 30000); // 30 seconds
 
     return () => clearInterval(predictionInterval);
-  }, [balance, activeTrades.length, isProMode, isSoundEnabled, activePair.name]);
+  }, [balance, activeTrades.length, isSoundEnabled, activePair.name]);
 
   // Prediction Countdown Logic
   useEffect(() => {
@@ -550,7 +546,18 @@ export default function TradeSim() {
     const value = e.target.valueAsNumber;
     setTradeAmount(Math.max(1, value || 1));
   };
+
+  const handleStopOffsetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.valueAsNumber;
+    setStopOffset(Math.max(0, value || 0));
+  };
   
+  const handleIncrementStopOffset = () => setStopOffset(prev => prev + 50);
+  const handleDecrementStopOffset = () => setStopOffset(prev => Math.max(0, prev - 50));
+
+  const handleIncrementAmount = () => setTradeAmount(prev => prev + 1);
+  const handleDecrementAmount = () => setTradeAmount(prev => Math.max(1, prev - 1));
+
   const handleTrade = (type: 'buy' | 'sell', amount: number) => {
     const currentChart = chartData[activePairId];
     if (!currentChart || currentChart.length < 1) {
@@ -598,16 +605,6 @@ export default function TradeSim() {
     setPredictions(prev => prev.map(p => p.id === predictionId ? { ...p, status: 'ignored' } : p));
   };
 
-  const handleToggleProMode = () => {
-    setIsProMode(prevIsPro => {
-        const newIsPro = !prevIsPro;
-        if (newIsPro && isSoundEnabled) {
-            modoProSoundRef.current?.play().catch(error => console.error("Audio play failed", error));
-        }
-        return newIsPro;
-    });
-  };
-  
   const handleZoom = () => {
     setZoomLevel(prev => {
       if (prev === 200) return 100;
@@ -697,12 +694,6 @@ export default function TradeSim() {
         placement: 'left',
     },
     {
-        ref: proModeButtonRef,
-        title: 'Modo Pro',
-        content: 'Ative o "Modo Pro" para receber sinais de entrada com maior risco e potencial de lucro. Use com sabedoria!',
-        placement: 'top',
-    },
-    {
         ref: achievementsButtonRef,
         title: 'Central de Conquistas',
         content: 'Aqui você pode acompanhar seus ranks e conquistas. Quanto mais vitórias, mais alto seu rank!',
@@ -722,6 +713,32 @@ export default function TradeSim() {
         spotlightPadding: 0,
     },
   ];
+
+  const NumberInputWithControls = ({ label, value, onDecrement, onIncrement, onChange }: {
+    label: string;
+    value: number;
+    onDecrement: () => void;
+    onIncrement: () => void;
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  }) => (
+      <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground uppercase tracking-wider">{label}</Label>
+          <div className="relative flex items-center">
+              <Input
+                  type="number"
+                  value={value}
+                  onChange={onChange}
+                  className="h-9 text-center bg-input border-border pr-8 pl-8"
+              />
+              <Button variant="ghost" size="icon" className="absolute left-0 h-9 w-9 text-muted-foreground" onClick={onDecrement}>
+                  <Minus className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="absolute right-0 h-9 w-9 text-muted-foreground" onClick={onIncrement}>
+                  <Plus className="h-4 w-4" />
+              </Button>
+          </div>
+      </div>
+  );
 
   return (
     <div className="flex md:flex-row flex-col h-screen w-full bg-background text-sm text-foreground font-body">
@@ -911,9 +928,6 @@ export default function TradeSim() {
                       </ScrollArea>
                   </SheetContent>
               </Sheet>
-            </div>
-            <div className="hidden md:flex items-center justify-center h-10 px-2 shrink-0">
-                <Image src="https://i.imgur.com/7muedyE.png" alt="TradeSim Logo" width={120} height={36} className="object-contain" />
             </div>
             {openPairs.map(pairId => {
                 const pair = allCurrencyPairs.find(p => p.id === pairId);
@@ -1197,94 +1211,68 @@ export default function TradeSim() {
       </div>
       
       {/* Right Sidebar / Mobile Bottom Bar */}
-      <aside className="w-full md:w-72 md:flex-none bg-[#1e222d] p-2 md:p-4 border-t md:border-t-0 md:border-l border-border flex flex-col gap-3 md:gap-4">
-        <div className="hidden md:flex justify-between items-center">
-            <div>
-                <p className="text-primary font-bold text-lg">R$ {balance.toFixed(2)}</p>
-                <p className="text-xs text-muted-foreground">TOTAL R$ {balance.toFixed(2)}</p>
+      <aside className="w-full md:w-72 md:flex-none bg-[#1e222d] p-4 border-t md:border-t-0 md:border-l border-border flex flex-col gap-4">
+        <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+                <Label htmlFor="strategy" className="text-xs text-muted-foreground uppercase tracking-wider">Estratégia</Label>
+                <Select defaultValue="none">
+                    <SelectTrigger id="strategy" className="h-9 bg-input border-border">
+                        <SelectValue placeholder="Nenhuma" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="none">Nenhuma</SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
-            <Button variant="outline" className="border-primary text-primary hover:bg-primary/10 hover:text-primary">
-                + DEPOSITAR
+            <div className="space-y-1">
+                <Label htmlFor="price" className="text-xs text-muted-foreground uppercase tracking-wider">Preço</Label>
+                <Select defaultValue="market">
+                    <SelectTrigger id="price" className="h-9 bg-input border-border">
+                        <SelectValue placeholder="Mercado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="market">Mercado</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+            <NumberInputWithControls 
+                label="Stop Offset"
+                value={stopOffset}
+                onChange={handleStopOffsetChange}
+                onIncrement={handleIncrementStopOffset}
+                onDecrement={handleDecrementStopOffset}
+            />
+            <NumberInputWithControls 
+                label="Quantidade"
+                value={tradeAmount}
+                onChange={handleAmountChange}
+                onIncrement={handleIncrementAmount}
+                onDecrement={handleDecrementAmount}
+            />
+        </div>
+        
+        <div className="grid grid-cols-2 gap-2">
+            <Button ref={buyButtonRef} className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold h-10" onClick={() => handleTrade('buy', tradeAmount)}>
+                C Mercado
+            </Button>
+            <Button ref={sellButtonRef} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-10" onClick={() => handleTrade('sell', tradeAmount)}>
+                V Mercado
+            </Button>
+            <Button className="bg-muted hover:bg-muted/90 text-muted-foreground font-bold h-10">
+                Inverter
+            </Button>
+            <Button className="bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold h-10">
+                Zerar
             </Button>
         </div>
-        <Separator className="!bg-border/50 hidden md:block" />
-        
-        <div className="flex flex-row md:flex-col items-stretch md:items-stretch gap-3 text-sm">
-           {/* Mobile Balance Display */}
-           <div className="flex-col justify-center items-center gap-1 p-2 rounded-lg bg-background/20 hidden max-md:flex">
-              <p className="text-xs text-muted-foreground">Saldo</p>
-              <p className="text-primary font-bold text-base whitespace-nowrap">R$ {balance.toFixed(2)}</p>
-          </div>
 
-            <div className="flex flex-1 md:flex-initial flex-col gap-2 justify-center">
-                <div className="flex justify-between items-center">
-                    <label htmlFor="invest-amount" className="text-muted-foreground text-xs">INVEST.</label>
-                    <Input id="invest-amount" type="number" value={tradeAmount} onChange={handleAmountChange} className="w-24 bg-input border-border text-right text-destructive font-bold h-9" />
-                </div>
-                <div className="hidden md:flex justify-between items-center">
-                    <p className="text-muted-foreground">ALAV.</p>
-                    <p className="text-white font-bold">x{leverage}</p>
-                </div>
-                <div className="hidden md:flex justify-between items-center">
-                    <p className="text-muted-foreground">TOTAL</p>
-                    <p className="text-white font-bold">R$ {(tradeAmount * leverage).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>
-                </div>
-            </div>
-
-            <div className="flex flex-1 md:flex-initial flex-row md:flex-col gap-3">
-                <Button ref={buyButtonRef} size="lg" className="h-auto flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2 disabled:opacity-50" onClick={() => handleTrade('buy', tradeAmount)}>
-                    <div className="flex items-center justify-between w-full">
-                        <ArrowUpRight className="h-6 w-6" />
-                        <div className="flex flex-col items-end">
-                            <span className="font-bold text-base">COMPRAR</span>
-                            <span className="text-xs">{currentPrice ? currentPrice.toFixed(activePair.precision) : '0.00000'}</span>
-                        </div>
-                    </div>
-                </Button>
-                <div className="hidden md:flex justify-between items-center text-xs px-2">
-                    <p className="text-muted-foreground">SPREAD</p>
-                    <p className="text-white">92.2</p>
-                </div>
-                <Button ref={sellButtonRef} size="lg" className="h-auto flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground py-2 disabled:opacity-50" onClick={() => handleTrade('sell', tradeAmount)}>
-                    <div className="flex items-center justify-between w-full">
-                        <ArrowDownLeft className="h-6 w-6" />
-                        <div className="flex flex-col items-end">
-                            <span className="font-bold text-base">VENDER</span>
-                            <span className="text-xs">{currentPrice ? currentPrice.toFixed(activePair.precision) : '0.00000'}</span>
-                        </div>
-                    </div>
-                </Button>
-            </div>
-        </div>
-        <div className="flex flex-col items-center justify-center gap-2 pt-3 border-t border-border/50">
-            <button
-                ref={proModeButtonRef}
-                onClick={handleToggleProMode}
-                className="group rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            >
-                <Image
-                    src="https://imgur.com/nujNEMB.png"
-                    alt="Modo Pro"
-                    width={80}
-                    height={80}
-                    className={cn(
-                        "rounded-full transition-all duration-300 ease-in-out",
-                        isProMode 
-                            ? "brightness-110 saturate-150 [filter:drop-shadow(0_0_8px_hsl(var(--primary)))]" 
-                            : "grayscale brightness-75 opacity-80 group-hover:opacity-100 group-hover:grayscale-0"
-                    )}
-                />
-            </button>
-            <p className={cn(
-                "font-bold transition-colors text-xs tracking-widest uppercase",
-                isProMode ? "text-primary" : "text-muted-foreground"
-            )}>
-                Modo Pro
-            </p>
-        </div>
+        <Button className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold h-10">
+            Cancelar Ordens + Zerar
+        </Button>
       </aside>
     </div>
   );
 }
-
-    

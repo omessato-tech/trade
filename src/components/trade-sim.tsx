@@ -1256,11 +1256,11 @@ export default function TradeSim() {
                 <div className="flex flex-col gap-2 mt-auto">
                     <Button ref={buyButtonRef} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-12 text-base" onClick={() => handleTrade('buy', tradeAmount)}>
                         <ArrowUpRight className="h-5 w-5 mr-2" />
-                        SUBIR
+                        CALL
                     </Button>
                     <Button ref={sellButtonRef} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold h-12 text-base" onClick={() => handleTrade('sell', tradeAmount)}>
                         <ArrowDownLeft className="h-5 w-5 mr-2" />
-                        DESCER
+                        PUT
                     </Button>
                 </div>
             </>
@@ -1282,7 +1282,7 @@ export default function TradeSim() {
                 </div>
 
                 <NumberInputWithControls 
-                    label="Quantidade"
+                    label="Investimento"
                     value={tradeAmount}
                     onChange={handleAmountChange}
                     onIncrement={handleIncrementAmount}
@@ -1290,11 +1290,13 @@ export default function TradeSim() {
                 />
                 
                 <div className="grid grid-cols-2 gap-2 mt-auto">
-                    <Button ref={buyButtonRef} className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold h-10" onClick={() => handleTrade('buy', tradeAmount)}>
-                        C Mercado
+                    <Button ref={buyButtonRef} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-12 text-base" onClick={() => handleTrade('buy', tradeAmount)}>
+                        <ArrowUpRight className="h-5 w-5 mr-2" />
+                        CALL
                     </Button>
-                    <Button ref={sellButtonRef} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-10" onClick={() => handleTrade('sell', tradeAmount)}>
-                        V Mercado
+                    <Button ref={sellButtonRef} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold h-12 text-base" onClick={() => handleTrade('sell', tradeAmount)}>
+                        <ArrowDownLeft className="h-5 w-5 mr-2" />
+                        PUT
                     </Button>
                 </div>
             </>
@@ -1303,4 +1305,3 @@ export default function TradeSim() {
     </div>
   );
 }
-

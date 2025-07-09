@@ -265,55 +265,57 @@ export default function TradeSim() {
 
   // Effect to process trades that have finished their countdown
   useEffect(() => {
-      if (tradesToResolve.length === 0) return;
+    if (tradesToResolve.length === 0) return;
 
-      tradesToResolve.forEach(trade => {
-          const currentChartData = chartDataRef.current?.[trade.pairId];
-          if (!currentChartData || currentChartData.length === 0) {
-              console.error("Cannot resolve trade, chart data not available for", trade.pairId);
-              return; // Could re-queue this trade, but for now we skip.
-          }
+    tradesToResolve.forEach(trade => {
+        const currentChartData = chartDataRef.current?.[trade.pairId];
+        if (!currentChartData || currentChartData.length === 0) {
+            console.error("Cannot resolve trade, chart data not available for", trade.pairId);
+            return;
+        }
 
-          const finalPrice = currentChartData[currentChartData.length - 1].c;
-          const { type, entryPrice, amount } = trade;
-          const isWin = (type === 'buy') ? finalPrice > entryPrice : finalPrice < entryPrice;
+        const finalPrice = currentChartData[currentChartData.length - 1].c;
+        const { type, entryPrice, amount } = trade;
+        const isWin = (type === 'buy') ? finalPrice > entryPrice : finalPrice < entryPrice;
 
-          if (isWin) {
-              setWinCount(prev => prev + 1);
-          }
+        if (isWin) {
+            setWinCount(prev => prev + 1);
+        }
 
-          const winAmount = amount * 0.9;
-          const lossAmount = -amount;
-          const resultAmount = isWin ? winAmount : lossAmount;
+        const winAmount = amount * 0.9;
+        const lossAmount = -amount;
+        const resultAmount = isWin ? winAmount : lossAmount;
 
-          const newHistoryItem: TradeHistoryItem = {
-              id: `${new Date().getTime()}-${Math.random()}`,
-              pairId: trade.pairId,
-              timestamp: new Date(),
-              type: trade.type,
-              entryPrice: trade.entryPrice,
-              closePrice: finalPrice,
-              amount: trade.amount,
-              resultAmount: resultAmount,
-              isWin: isWin,
-          };
-          setTradeHistory(prev => [newHistoryItem, ...prev]);
+        const newHistoryItem: TradeHistoryItem = {
+            id: `${new Date().getTime()}-${Math.random()}`,
+            pairId: trade.pairId,
+            timestamp: new Date(),
+            type: trade.type,
+            entryPrice: trade.entryPrice,
+            closePrice: finalPrice,
+            amount: trade.amount,
+            resultAmount: resultAmount,
+            isWin: isWin,
+        };
+        setTradeHistory(prev => [newHistoryItem, ...prev]);
 
-          setLastTradeResult({
-              amount: Math.abs(resultAmount),
-              type: isWin ? 'gain' : 'loss'
-          });
-          setTimeout(() => setLastTradeResult(null), 2000);
+        setLastTradeResult({
+            amount: Math.abs(resultAmount),
+            type: isWin ? 'gain' : 'loss'
+        });
+        setTimeout(() => setLastTradeResult(null), 2000);
 
-          if (isSoundEnabled) {
-              const sound = isWin ? gainSoundRef.current : lossSoundRef.current;
-              sound?.play().catch(console.error);
-          }
+        if (isSoundEnabled) {
+            const sound = isWin ? gainSoundRef.current : lossSoundRef.current;
+            sound?.play().catch(console.error);
+        }
+        
+        if (isWin) {
+          setBalance(prevBalance => prevBalance + amount + winAmount);
+        }
+    });
 
-          setBalance(prevBalance => prevBalance + resultAmount);
-      });
-
-      setTradesToResolve([]); // Clear the queue after processing
+    setTradesToResolve([]); // Clear the queue after processing
   }, [tradesToResolve, isSoundEnabled]);
 
   // Effect for trade countdowns and live status updates
@@ -543,6 +545,8 @@ export default function TradeSim() {
         clickSoundRef.current?.play().catch(error => console.error("Audio play failed", error));
     }
     
+    setBalance(prevBalance => prevBalance - amount);
+
     const entryPrice = currentChart[currentChart.length - 1].c;
     const newTrade: TradeDetails = {
         id: `${new Date().getTime()}`,

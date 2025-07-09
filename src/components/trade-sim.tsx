@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { 
     Plus, Briefcase, History, Megaphone, PlayCircle, MessageCircle, MoreHorizontal, 
     Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, Bitcoin, X,
-    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy, Award, Medal, Menu, Settings, Minus
+    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy, Award, Medal, Menu, Settings, Minus, Palette
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
@@ -29,6 +29,7 @@ import type { Chart as ChartJS } from 'chart.js';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Switch } from './ui/switch';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 
 
 const timeframes = ['5s', '30s', '1m', '5m'];
@@ -171,6 +172,20 @@ export default function TradeSim() {
   const achievementsButtonRef = useRef<HTMLDivElement>(null);
   const predictionsChatRef = useRef<HTMLDivElement>(null);
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+
+  const [theme, setTheme] = useState('dark');
+  
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('tradeSimTheme') || 'dark';
+    document.documentElement.className = savedTheme;
+    setTheme(savedTheme);
+  }, []);
+
+  const handleThemeChange = (newTheme: string) => {
+    document.documentElement.className = newTheme;
+    localStorage.setItem('tradeSimTheme', newTheme);
+    setTheme(newTheme);
+  };
 
   // Sound setup
   useEffect(() => {
@@ -877,7 +892,7 @@ export default function TradeSim() {
                           <Menu className="h-5 w-5" />
                       </Button>
                   </SheetTrigger>
-                  <SheetContent side="left" className="w-[280px] p-0 flex flex-col bg-[#13161c] border-r border-border/50">
+                  <SheetContent side="left" className="w-[280px] p-0 flex flex-col bg-background border-r border-border/50">
                       <SheetHeader className="p-4 border-b border-border/50 text-left">
                           <SheetTitle className="text-xl font-bold">Menu Principal</SheetTitle>
                       </SheetHeader>
@@ -894,6 +909,23 @@ export default function TradeSim() {
                           <div className="flex flex-col gap-1 p-2">
                               <TradeHistoryPanel history={tradeHistory} allPairs={allCurrencyPairs} />
                               <AchievementsPanel winCount={winCount} achievements={achievements} />
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="justify-start gap-2 px-3">
+                                        <Palette className="h-5 w-5" />
+                                        <span>Temas</span>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start">
+                                    <DropdownMenuLabel>Selecione um Tema</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuRadioGroup value={theme} onValueChange={handleThemeChange}>
+                                        <DropdownMenuRadioItem value="dark">Padrão</DropdownMenuRadioItem>
+                                        <DropdownMenuRadioItem value="light">Claro</DropdownMenuRadioItem>
+                                        <DropdownMenuRadioItem value="theme-brasil">Brasil</DropdownMenuRadioItem>
+                                    </DropdownMenuRadioGroup>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                               <Button variant="ghost" className="justify-start gap-2 px-3">
                                 <Megaphone className="h-5 w-5" /> Notícias
                               </Button>
@@ -943,7 +975,7 @@ export default function TradeSim() {
                         onClick={() => handlePairChange(pair.id)}
                         className={cn(
                             "relative flex items-center gap-2 p-2 rounded-md cursor-pointer h-10 shrink-0",
-                            isActive ? "bg-background/50 border-b-2 border-primary" : "hover:bg-background/20"
+                            isActive ? "bg-card/50 border-b-2 border-primary" : "hover:bg-card/20"
                         )}
                     >
                         {activeTradeCount > 0 && (

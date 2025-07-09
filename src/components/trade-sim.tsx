@@ -114,7 +114,7 @@ export default function TradeSim() {
   const [openPairs, setOpenPairs] = useState(['EUR/USD', 'EUR/JPY', 'BTC-USD', 'CHF/JPY']);
   const [chartData, setChartData] = useState<{ [key: string]: any[] }>({});
   const [activeTimeframe, setActiveTimeframe] = useState('5s');
-  const [tradeAmount, setTradeAmount] = useState(1);
+  const [tradeAmount, setTradeAmount] = useState(1.00);
   const [tradeDuration, setTradeDuration] = useState(30);
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [visibleResults, setVisibleResults] = useState<TradeHistoryItem[]>([]);
@@ -558,13 +558,27 @@ export default function TradeSim() {
   }, [isDragging, handleMouseMove]);
 
 
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.valueAsNumber;
-    setTradeAmount(Math.max(1, value || 1));
+  const formatCurrency = (value: number) => {
+    return value.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
+
+  const handleInvestmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target;
+    // Remove all non-digit characters
+    const digits = value.replace(/\D/g, '');
+    if (digits) {
+      const numberValue = parseInt(digits, 10) / 100;
+      setTradeAmount(numberValue);
+    } else {
+      setTradeAmount(0);
+    }
   };
 
   const handleIncrementAmount = () => setTradeAmount(prev => prev + 1);
-  const handleDecrementAmount = () => setTradeAmount(prev => Math.max(1, prev - 1));
+  const handleDecrementAmount = () => setTradeAmount(prev => Math.max(0.01, prev - 1));
 
   const handleTrade = (type: 'buy' | 'sell', amount: number) => {
     const currentChart = chartData[activePairId];
@@ -733,8 +747,8 @@ export default function TradeSim() {
           <Label className="text-xs text-muted-foreground uppercase tracking-wider">{label}</Label>
           <div className="relative flex items-center">
               <Input
-                  type="number"
-                  value={value}
+                  type="text"
+                  value={formatCurrency(value)}
                   onChange={onChange}
                   className="h-9 text-center bg-input border-border pr-8 pl-8"
               />
@@ -886,7 +900,7 @@ export default function TradeSim() {
                       <SheetHeader className="p-4 border-b border-border/50 text-left">
                           <SheetTitle className="text-xl font-bold">Menu Principal</SheetTitle>
                       </SheetHeader>
-                      <div className="flex flex-col p-4 gap-4 border-b border-border/50">
+                      <div className="flex flex-col gap-4 border-b border-border/50 p-4">
                            <div>
                                 <p className="text-xs text-muted-foreground">Saldo da Conta</p>
                                 <p className="text-primary font-bold text-2xl">R$ {balance.toFixed(2)}</p>
@@ -1255,7 +1269,7 @@ export default function TradeSim() {
                 <NumberInputWithControls 
                     label="Investimento"
                     value={tradeAmount}
-                    onChange={handleAmountChange}
+                    onChange={handleInvestmentChange}
                     onIncrement={handleIncrementAmount}
                     onDecrement={handleDecrementAmount}
                 />
@@ -1291,7 +1305,7 @@ export default function TradeSim() {
                 <NumberInputWithControls 
                     label="Investimento"
                     value={tradeAmount}
-                    onChange={handleAmountChange}
+                    onChange={handleInvestmentChange}
                     onIncrement={handleIncrementAmount}
                     onDecrement={handleDecrementAmount}
                 />

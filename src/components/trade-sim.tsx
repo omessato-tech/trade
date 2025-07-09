@@ -284,51 +284,40 @@ export default function TradeSim() {
         const trades = activeTradesRef.current;
         if (!trades) return;
 
-        const tradesToResolve: TradeDetails[] = [];
-        const stillActive: TradeDetails[] = [];
         let needsHeartbeat = false;
-
-        // Process current trades to see which are ending vs still active
-        trades.forEach(trade => {
-            if (trade.countdown <= 1) {
-                tradesToResolve.push(trade);
-            } else {
-                const currentPairChartData = chartDataRef.current?.[trade.pairId];
-                let newProfitState = trade.profitState;
-
-                if (currentPairChartData && currentPairChartData.length > 0) {
-                    const currentPrice = currentPairChartData[currentPairChartData.length - 1].c;
-                    newProfitState = ((trade.type === 'buy' && currentPrice > trade.entryPrice) || (trade.type === 'sell' && currentPrice < trade.entryPrice))
-                        ? 'profit' : 'loss';
-                }
-
-                if (newProfitState === 'loss') {
-                    needsHeartbeat = true;
-                }
-
-                stillActive.push({
-                    ...trade,
-                    countdown: trade.countdown - 1,
-                    profitState: newProfitState,
-                });
-            }
-        });
         
-        // Update the list of active trades
-        setActiveTrades(stillActive);
+        const updatedTrades = trades.map(trade => {
+            if (trade.countdown <= 1) {
+                return trade;
+            }
+            const currentPairChartData = chartDataRef.current?.[trade.pairId];
+            let newProfitState = trade.profitState;
 
-        // Resolve finished trades and update all relevant states
+            if (currentPairChartData && currentPairChartData.length > 0) {
+                const currentPrice = currentPairChartData[currentPairChartData.length - 1].c;
+                newProfitState = ((trade.type === 'buy' && currentPrice > trade.entryPrice) || (trade.type === 'sell' && currentPrice < trade.entryPrice))
+                    ? 'profit' : 'loss';
+            }
+            if (newProfitState === 'loss') needsHeartbeat = true;
+
+            return { ...trade, countdown: trade.countdown - 1, profitState: newProfitState };
+        });
+
+        const tradesToResolve = updatedTrades.filter(t => t.countdown <= 1);
+        const stillActive = updatedTrades.filter(t => t.countdown > 1);
+
+        setActiveTrades(stillActive);
+        
         if (tradesToResolve.length > 0) {
-            const newHistoryItems: TradeHistoryItem[] = [];
             let balanceChange = 0;
             let winsToAdd = 0;
-            let soundToPlay: 'win' | 'loss' | null = null;
+            const newHistoryItems: TradeHistoryItem[] = [];
 
             tradesToResolve.forEach(trade => {
                 const currentChartData = chartDataRef.current?.[trade.pairId];
                 if (!currentChartData || currentChartData.length === 0) {
                     console.error("Cannot resolve trade, chart data not available for", trade.pairId);
-                    return; // Skip this trade if data is missing
+                    return;
                 }
         
                 const finalPrice = currentChartData[currentChartData.length - 1].c;
@@ -339,11 +328,11 @@ export default function TradeSim() {
                 const resultAmount = isWin ? winAmount : -amount;
         
                 if (isWin) {
-                    winsToAdd += 1;
+                    winsToAdd++;
                     balanceChange += amount + winAmount; // Return initial investment + profit
-                    soundToPlay = 'win';
+                    if (isSoundEnabled) gainSoundRef.current?.play().catch(console.error);
                 } else {
-                    soundToPlay = 'loss';
+                    if (isSoundEnabled) lossSoundRef.current?.play().catch(console.error);
                 }
         
                 const newHistoryItem: TradeHistoryItem = {
@@ -360,21 +349,14 @@ export default function TradeSim() {
                 newHistoryItems.push(newHistoryItem);
             });
             
-            // Batch update all states related to trade resolution
             if (newHistoryItems.length > 0) {
                 setBalance(prev => prev + balanceChange);
                 setWinCount(prev => prev + winsToAdd);
                 setTradeHistory(prev => [...newHistoryItems, ...prev]);
                 setVisibleResults(prev => [...newHistoryItems, ...prev].slice(0, 5));
-                
-                if (isSoundEnabled && soundToPlay) {
-                    const sound = soundToPlay === 'win' ? gainSoundRef.current : lossSoundRef.current;
-                    sound?.play().catch(console.error);
-                }
             }
         }
         
-        // Handle heartbeat sound for remaining active trades
         if (isSoundEnabled) {
             if (needsHeartbeat && heartbeatSoundRef.current?.paused) {
                 heartbeatSoundRef.current.play().catch(console.error);
@@ -745,7 +727,6 @@ export default function TradeSim() {
       
       {/* Left Sidebar */}
       <aside className="w-16 hidden md:flex flex-none flex-col items-center space-y-2 bg-[#1e222d] py-4 border-r border-border">
-        <Button variant="ghost" size="icon"><Menu className="h-5 w-5" /></Button>
          <Dialog open={isAssetSelectorOpen} onOpenChange={setIsAssetSelectorOpen}>
             <DialogTrigger asChild>
                 <Button variant="ghost" size="icon"><Plus className="h-5 w-5" /></Button>

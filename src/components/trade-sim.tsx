@@ -124,62 +124,68 @@ export default function TradeSim() {
 
 
   const resolveTrade = useCallback((tradeId: string) => {
-    const tradeToResolve = activeTrades.find(t => t.id === tradeId);
-    if (!tradeToResolve) return;
+    setActiveTrades(prevTrades => {
+        const tradeToResolve = prevTrades.find(t => t.id === tradeId);
+        if (!tradeToResolve) return prevTrades;
 
-    const currentChartData = chartDataRef.current?.[tradeToResolve.pairId];
-    if (!currentChartData || currentChartData.length === 0) return;
+        const currentChartData = chartDataRef.current?.[tradeToResolve.pairId];
+        if (!currentChartData || currentChartData.length === 0) {
+            // Can't resolve yet, so don't filter it out
+            return prevTrades;
+        };
 
-    const finalPrice = currentChartData[currentChartData.length - 1].c;
-    const { type, entryPrice, amount } = tradeToResolve;
+        const finalPrice = currentChartData[currentChartData.length - 1].c;
+        const { type, entryPrice, amount } = tradeToResolve;
 
-    let isWin = false;
-    if (type === 'buy') {
-      isWin = finalPrice > entryPrice;
-    } else { // sell
-      isWin = finalPrice < entryPrice;
-    }
+        let isWin = false;
+        if (type === 'buy') {
+          isWin = finalPrice > entryPrice;
+        } else { // sell
+          isWin = finalPrice < entryPrice;
+        }
 
-    if (isWin) {
-      setWinCount(prev => prev + 1);
-    }
+        if (isWin) {
+          setWinCount(prev => prev + 1);
+        }
 
-    const winAmount = amount * 0.9;
-    const lossAmount = -amount;
-    const resultAmount = isWin ? winAmount : lossAmount;
+        const winAmount = amount * 0.9;
+        const lossAmount = -amount;
+        const resultAmount = isWin ? winAmount : lossAmount;
 
-    const newHistoryItem: TradeHistoryItem = {
-      id: `${new Date().getTime()}`,
-      pairId: tradeToResolve.pairId,
-      timestamp: new Date(),
-      type: tradeToResolve.type,
-      entryPrice: tradeToResolve.entryPrice,
-      closePrice: finalPrice,
-      amount: tradeToResolve.amount,
-      resultAmount: resultAmount,
-      isWin: isWin,
-    };
-    setTradeHistory(prev => [newHistoryItem, ...prev]);
-    
-    setLastTradeResult({
-        amount: Math.abs(resultAmount),
-        type: isWin ? 'gain' : 'loss'
-    });
-    setTimeout(() => {
-        setLastTradeResult(null);
-    }, 2000);
+        const newHistoryItem: TradeHistoryItem = {
+          id: `${new Date().getTime()}`,
+          pairId: tradeToResolve.pairId,
+          timestamp: new Date(),
+          type: tradeToResolve.type,
+          entryPrice: tradeToResolve.entryPrice,
+          closePrice: finalPrice,
+          amount: tradeToResolve.amount,
+          resultAmount: resultAmount,
+          isWin: isWin,
+        };
+        setTradeHistory(prev => [newHistoryItem, ...prev]);
+        
+        setLastTradeResult({
+            amount: Math.abs(resultAmount),
+            type: isWin ? 'gain' : 'loss'
+        });
+        setTimeout(() => {
+            setLastTradeResult(null);
+        }, 2000);
 
-    if (isSoundEnabled) {
-      if (isWin) {
-          gainSoundRef.current?.play().catch(error => console.error("Audio play failed", error));
-      } else {
-          lossSoundRef.current?.play().catch(error => console.error("Audio play failed", error));
-      }
-    }
+        if (isSoundEnabled) {
+          if (isWin) {
+              gainSoundRef.current?.play().catch(error => console.error("Audio play failed", error));
+          } else {
+              lossSoundRef.current?.play().catch(error => console.error("Audio play failed", error));
+          }
+        }
 
-    setBalance(prevBalance => prevBalance + resultAmount);
-    setActiveTrades(prev => prev.filter(t => t.id !== tradeId));
-  }, [activeTrades, isSoundEnabled]);
+        setBalance(prevBalance => prevBalance + resultAmount);
+        
+        return prevTrades.filter(t => t.id !== tradeId);
+      })
+  }, [isSoundEnabled]);
 
 
   useEffect(() => {
@@ -280,76 +286,67 @@ export default function TradeSim() {
     return () => clearInterval(timer);
   }, []);
 
-  // Countdown timer logic for active trades
+  // Combined effect for trade countdown, profit/loss checking, and resolving trades
   useEffect(() => {
-    const timer = setInterval(() => {
-      let expiredTrades = false;
-      setActiveTrades(prevTrades => 
-        prevTrades.map(trade => {
-          if (trade.countdown > 0) {
-            return { ...trade, countdown: trade.countdown - 1 };
-          } else {
-            expiredTrades = true;
-            return trade;
-          }
-        })
-      );
-      if (expiredTrades) {
-          activeTrades.forEach(trade => {
-              if(trade.countdown <= 0) {
-                  resolveTrade(trade.id);
-              }
-          })
-      }
+    const tradeTimer = setInterval(() => {
+        const tradesToResolve: string[] = [];
+        
+        setActiveTrades(prevTrades => {
+            if (prevTrades.length === 0) {
+                if (heartbeatSoundRef.current) {
+                    heartbeatSoundRef.current.pause();
+                    heartbeatSoundRef.current.currentTime = 0;
+                }
+                return [];
+            }
+            
+            let anyLoss = false;
+            
+            const updatedTrades = prevTrades.map(trade => {
+                const newCountdown = trade.countdown > 0 ? trade.countdown - 1 : 0;
+                
+                if (newCountdown === 0) {
+                    tradesToResolve.push(trade.id);
+                }
+                
+                const currentPairChartData = chartDataRef.current?.[trade.pairId];
+                let newProfitState = trade.profitState;
+                
+                if (currentPairChartData && currentPairChartData.length > 0) {
+                    const currentPrice = currentPairChartData[currentPairChartData.length - 1].c;
+                    const { type, entryPrice } = trade;
+                    const isProfit = (type === 'buy') ? currentPrice > entryPrice : currentPrice < entryPrice;
+                    newProfitState = isProfit ? 'profit' : 'loss';
+                }
+                
+                if (newProfitState === 'loss') {
+                    anyLoss = true;
+                }
+                
+                return { ...trade, countdown: newCountdown, profitState: newProfitState };
+            });
+            
+            if (anyLoss) {
+                if (isSoundEnabled) {
+                    heartbeatSoundRef.current?.play().catch(error => console.error("Heartbeat audio play failed", error));
+                }
+            } else {
+                if (heartbeatSoundRef.current) {
+                    heartbeatSoundRef.current.pause();
+                    heartbeatSoundRef.current.currentTime = 0;
+                }
+            }
+            
+            return updatedTrades;
+        });
+        
+        if (tradesToResolve.length > 0) {
+            tradesToResolve.forEach(id => resolveTrade(id));
+        }
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, [activeTrades, resolveTrade]);
-  
-  // Profit/Loss state checker
-  useEffect(() => {
-    if (activeTrades.length === 0 || !chartDataRef.current) {
-        if (heartbeatSoundRef.current) {
-          heartbeatSoundRef.current.pause();
-          heartbeatSoundRef.current.currentTime = 0;
-        }
-        return;
-    }
-    
-    let anyLoss = false;
-    setActiveTrades(prevTrades => 
-        prevTrades.map(trade => {
-            const currentPairChartData = chartDataRef.current![trade.pairId];
-            if (!currentPairChartData || currentPairChartData.length === 0) {
-                return trade;
-            }
-            
-            const currentPrice = currentPairChartData[currentPairChartData.length - 1].c;
-            const { type, entryPrice } = trade;
-
-            let isProfit = (type === 'buy') ? currentPrice > entryPrice : currentPrice < entryPrice;
-            const newProfitState = isProfit ? 'profit' : 'loss';
-            
-            if (newProfitState === 'loss') {
-                anyLoss = true;
-            }
-
-            return { ...trade, profitState: newProfitState };
-        })
-    );
-    
-    if (anyLoss) {
-        if (isSoundEnabled) {
-          heartbeatSoundRef.current?.play().catch(error => console.error("Heartbeat audio play failed", error));
-        }
-    } else {
-        if (heartbeatSoundRef.current) {
-            heartbeatSoundRef.current.pause();
-            heartbeatSoundRef.current.currentTime = 0;
-        }
-    }
-
-  }, [chartData, activeTrades, isSoundEnabled]);
+    return () => clearInterval(tradeTimer);
+  }, [isSoundEnabled, resolveTrade]);
 
   // Stop sounds if they are disabled
   useEffect(() => {
@@ -362,36 +359,39 @@ export default function TradeSim() {
   // Prediction Generation
   useEffect(() => {
     const predictionInterval = setInterval(() => {
-      const hasActivePrediction = predictions.some(p => p.status === 'active');
-      if (activeTrades.length === 0 && !hasActivePrediction) {
-        const predictionType = Math.random() > 0.5 ? 'buy' : 'sell';
-        
-        const predictionPercentage = isProMode
-            ? Math.floor(Math.random() * 21) + 20 // 20% to 40%
-            : Math.floor(Math.random() * 11) + 10; // 10% to 20%
-        
-        const predictionAmount = (balance * predictionPercentage) / 100;
+      setPredictions(prevPredictions => {
+        const hasActivePrediction = prevPredictions.some(p => p.status === 'active');
+        if (activeTrades.length === 0 && !hasActivePrediction) {
+          const predictionType = Math.random() > 0.5 ? 'buy' : 'sell';
+          
+          const predictionPercentage = isProMode
+              ? Math.floor(Math.random() * 21) + 20 // 20% to 40%
+              : Math.floor(Math.random() * 11) + 10; // 10% to 20%
+          
+          const predictionAmount = (balance * predictionPercentage) / 100;
 
-        const newPrediction: PredictionMessage = {
-          id: new Date().getTime().toString(),
-          type: predictionType,
-          amount: predictionAmount,
-          percentage: predictionPercentage,
-          countdown: 15,
-          pairName: activePair.name,
-          status: 'active',
-        };
+          const newPrediction: PredictionMessage = {
+            id: new Date().getTime().toString(),
+            type: predictionType,
+            amount: predictionAmount,
+            percentage: predictionPercentage,
+            countdown: 15,
+            pairName: activePair.name,
+            status: 'active',
+          };
 
-        setPredictions(prev => [newPrediction, ...prev].slice(0, 5));
-        setIsChatMinimized(false);
-        if (isSoundEnabled) {
-          notificationSoundRef.current?.play().catch(error => console.error("Notification audio play failed", error));
+          setIsChatMinimized(false);
+          if (isSoundEnabled) {
+            notificationSoundRef.current?.play().catch(error => console.error("Notification audio play failed", error));
+          }
+          return [newPrediction, ...prevPredictions].slice(0, 5);
         }
-      }
+        return prevPredictions;
+      });
     }, 30000); // 30 seconds
 
     return () => clearInterval(predictionInterval);
-  }, [balance, activeTrades, predictions, isProMode, isSoundEnabled, activePair.name]);
+  }, [balance, activeTrades.length, isProMode, isSoundEnabled, activePair.name]);
 
   // Prediction Countdown Logic
   useEffect(() => {

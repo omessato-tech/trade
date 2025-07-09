@@ -64,6 +64,7 @@ const TradeChart = React.forwardRef<ChartJS<'candlestick', any[], any>, TradeCha
           display: true,
           position: index % 2 === 0 ? 'start' : 'end',
           backgroundColor: 'rgba(0,0,0,0.6)',
+          color: 'white',
           font: {
             family: 'Inter, sans-serif'
           }
@@ -134,11 +135,11 @@ const TradeChart = React.forwardRef<ChartJS<'candlestick', any[], any>, TradeCha
           }
         },
         grid: {
-          color: 'hsla(var(--border), 0.5)',
-          borderColor: 'hsla(var(--border), 0.5)'
+          color: 'rgba(255, 255, 255, 0.1)',
+          borderColor: 'rgba(255, 255, 255, 0.1)'
         },
         ticks: {
-          color: 'hsl(var(--muted-foreground))',
+          color: 'rgba(255, 255, 255, 0.7)',
           maxRotation: 0,
           autoSkip: true,
           maxTicksLimit: 7,
@@ -151,11 +152,11 @@ const TradeChart = React.forwardRef<ChartJS<'candlestick', any[], any>, TradeCha
       },
       y: {
         grid: {
-          color: 'hsla(var(--border), 0.5)',
-          borderColor: 'hsla(var(--border), 0.5)'
+          color: 'rgba(255, 255, 255, 0.1)',
+          borderColor: 'rgba(255, 255, 255, 0.1)'
         },
         ticks: {
-          color: 'hsl(var(--muted-foreground))',
+          color: 'rgba(255, 255, 255, 0.7)',
           callback: function(value: any) {
             return value.toFixed(4);
           },

@@ -48,9 +48,10 @@ const TradeChart = React.forwardRef<ChartJS<'candlestick', any[], any>, TradeCha
   
   if (entryLines && entryLines.length > 0) {
     entryLines.forEach((line, index) => {
+      // Use direct HEX values for reliability, as CSS variables might not resolve in canvas.
       let borderColor = '#FF8C00'; // Orange for neutral
-      if (line.state === 'profit') borderColor = 'hsl(var(--primary))';
-      if (line.state === 'loss') borderColor = 'hsl(var(--destructive))';
+      if (line.state === 'profit') borderColor = '#22c55e'; // Green for profit
+      if (line.state === 'loss') borderColor = '#ef4444'; // Red for loss
 
       chartAnnotations[`entryLine${index}`] = {
         type: 'line' as const,

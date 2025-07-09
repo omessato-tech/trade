@@ -28,6 +28,7 @@ import { TutorialGuide, type TutorialStep } from './tutorial-guide';
 import type { Chart as ChartJS } from 'chart.js';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Switch } from './ui/switch';
 
 
 const timeframes = ['5s', '30s', '1m', '5m'];
@@ -114,6 +115,7 @@ export default function TradeSim() {
   const [chartData, setChartData] = useState<{ [key: string]: any[] }>({});
   const [activeTimeframe, setActiveTimeframe] = useState('5s');
   const [tradeAmount, setTradeAmount] = useState(1);
+  const [tradeDuration, setTradeDuration] = useState(30);
   const [stopOffset, setStopOffset] = useState(150);
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [visibleResults, setVisibleResults] = useState<TradeHistoryItem[]>([]);
@@ -142,6 +144,7 @@ export default function TradeSim() {
   const [predictions, setPredictions] = useState<PredictionMessage[]>([]);
   const [isChatMinimized, setIsChatMinimized] = useState(true);
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
+  const [isProMode, setIsProMode] = useState(false);
   
   const chartDataRef = useRef<{ [key: string]: any[] }>();
   chartDataRef.current = chartData;
@@ -581,7 +584,7 @@ export default function TradeSim() {
         type,
         entryPrice,
         amount,
-        countdown: 30,
+        countdown: tradeDuration,
         profitState: null,
     };
 
@@ -1212,67 +1215,92 @@ export default function TradeSim() {
       
       {/* Right Sidebar / Mobile Bottom Bar */}
       <aside className="w-full md:w-72 md:flex-none bg-[#1e222d] p-4 border-t md:border-t-0 md:border-l border-border flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-                <Label htmlFor="strategy" className="text-xs text-muted-foreground uppercase tracking-wider">Estratégia</Label>
-                <Select defaultValue="none">
-                    <SelectTrigger id="strategy" className="h-9 bg-input border-border">
-                        <SelectValue placeholder="Nenhuma" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="none">Nenhuma</SelectItem>
-                    </SelectContent>
-                </Select>
+        <div className="flex flex-col gap-4">
+            <div className="flex justify-between items-center text-lg font-mono">
+                <span className="text-muted-foreground">Saldo:</span>
+                <span className="font-bold text-white">R$ {balance.toFixed(2)}</span>
             </div>
-            <div className="space-y-1">
-                <Label htmlFor="price" className="text-xs text-muted-foreground uppercase tracking-wider">Preço</Label>
-                <Select defaultValue="market">
-                    <SelectTrigger id="price" className="h-9 bg-input border-border">
-                        <SelectValue placeholder="Mercado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="market">Mercado</SelectItem>
-                    </SelectContent>
-                </Select>
+            <div className="flex items-center justify-between">
+                <Label htmlFor="pro-mode" className="text-white">Modo PRO</Label>
+                <Switch id="pro-mode" checked={isProMode} onCheckedChange={setIsProMode} />
             </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-            <NumberInputWithControls 
-                label="Stop Offset"
-                value={stopOffset}
-                onChange={handleStopOffsetChange}
-                onIncrement={handleIncrementStopOffset}
-                onDecrement={handleDecrementStopOffset}
-            />
-            <NumberInputWithControls 
-                label="Quantidade"
-                value={tradeAmount}
-                onChange={handleAmountChange}
-                onIncrement={handleIncrementAmount}
-                onDecrement={handleDecrementAmount}
-            />
         </div>
         
-        <div className="grid grid-cols-2 gap-2">
-            <Button ref={buyButtonRef} className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold h-10" onClick={() => handleTrade('buy', tradeAmount)}>
-                C Mercado
-            </Button>
-            <Button ref={sellButtonRef} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-10" onClick={() => handleTrade('sell', tradeAmount)}>
-                V Mercado
-            </Button>
-            <Button className="bg-muted hover:bg-muted/90 text-muted-foreground font-bold h-10">
-                Inverter
-            </Button>
-            <Button className="bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold h-10">
-                Zerar
-            </Button>
-        </div>
+        <Separator className="!bg-border/50" />
 
-        <Button className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold h-10">
-            Cancelar Ordens + Zerar
-        </Button>
+        {!isProMode ? (
+            <>
+                {/* Simple Mode */}
+                <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Tempo</Label>
+                    <Select value={String(tradeDuration)} onValueChange={(val) => setTradeDuration(Number(val))}>
+                        <SelectTrigger className="h-9 bg-input border-border">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="30">30 segundos</SelectItem>
+                            <SelectItem value="60">1 minuto</SelectItem>
+                            <SelectItem value="300">5 minutos</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                
+                <NumberInputWithControls 
+                    label="Investimento"
+                    value={tradeAmount}
+                    onChange={handleAmountChange}
+                    onIncrement={handleIncrementAmount}
+                    onDecrement={handleDecrementAmount}
+                />
+
+                <div className="flex flex-col gap-2 mt-auto">
+                    <Button ref={buyButtonRef} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-12 text-base" onClick={() => handleTrade('buy', tradeAmount)}>
+                        <ArrowUpRight className="h-5 w-5 mr-2" />
+                        SUBIR
+                    </Button>
+                    <Button ref={sellButtonRef} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold h-12 text-base" onClick={() => handleTrade('sell', tradeAmount)}>
+                        <ArrowDownLeft className="h-5 w-5 mr-2" />
+                        DESCER
+                    </Button>
+                </div>
+            </>
+        ) : (
+            <>
+                {/* PRO Mode */}
+                <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Tempo</Label>
+                    <Select value={String(tradeDuration)} onValueChange={(val) => setTradeDuration(Number(val))}>
+                        <SelectTrigger className="h-9 bg-input border-border">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="30">30 segundos</SelectItem>
+                            <SelectItem value="60">1 minuto</SelectItem>
+                            <SelectItem value="300">5 minutos</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <NumberInputWithControls 
+                    label="Quantidade"
+                    value={tradeAmount}
+                    onChange={handleAmountChange}
+                    onIncrement={handleIncrementAmount}
+                    onDecrement={handleDecrementAmount}
+                />
+                
+                <div className="grid grid-cols-2 gap-2 mt-auto">
+                    <Button ref={buyButtonRef} className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold h-10" onClick={() => handleTrade('buy', tradeAmount)}>
+                        C Mercado
+                    </Button>
+                    <Button ref={sellButtonRef} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-10" onClick={() => handleTrade('sell', tradeAmount)}>
+                        V Mercado
+                    </Button>
+                </div>
+            </>
+        )}
       </aside>
     </div>
   );
 }
+

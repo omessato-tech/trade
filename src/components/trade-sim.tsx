@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -10,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { 
     Menu, Plus, Briefcase, History, Megaphone, PlayCircle, MessageCircle, MoreHorizontal, 
     Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, LayoutGrid, Bitcoin, X,
-    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX
+    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
@@ -21,6 +22,7 @@ import type { LucideIcon } from 'lucide-react';
 import { TradeHistoryPanel } from './trade-history-panel';
 import type { TradeHistoryItem } from './trade-history-panel';
 import { ScrollArea } from './ui/scroll-area';
+import { AchievementsPanel } from './achievements-panel';
 
 const timeframes = ['5s', '30s', '1m', '5m'];
 const timeframeDurations: { [key: string]: number } = {
@@ -69,24 +71,6 @@ const allCurrencyPairs: CurrencyPair[] = [
   { id: 'Solana', name: 'Solana', category: 'Crypto', type: 'Crypto', basePrice: 145, precision: 2, icon: Waves },
 ];
 
-
-const generateRandomPriceMovement = (currentPrice: number, direction: 'buy' | 'sell' | null, basePrice: number): number => {
-    const volatilityFactor = 0.00015;
-    
-    let movement;
-    if (direction === 'buy') {
-        movement = (Math.random() - 0.45) * 0.5 + (Math.random() * 0.05);
-    } else if (direction === 'sell') {
-        movement = (Math.random() - 0.55) * 0.5 - (Math.random() * 0.05);
-    } else {
-        movement = (Math.random() - 0.5);
-    }
-    
-    const priceChange = movement * (basePrice * volatilityFactor);
-    return currentPrice + priceChange;
-};
-
-
 export default function TradeSim() {
   const [balance, setBalance] = useState(1000);
   const [activePairId, setActivePairId] = useState('EUR/USD');
@@ -109,6 +93,7 @@ export default function TradeSim() {
   const [profitState, setProfitState] = useState<'profit' | 'loss' | null>(null);
   const [zoomLevel, setZoomLevel] = useState(200);
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryItem[]>([]);
+  const [winCount, setWinCount] = useState(0);
 
   const [predictions, setPredictions] = useState<PredictionMessage[]>([]);
   const [isChatMinimized, setIsChatMinimized] = useState(true);
@@ -118,11 +103,6 @@ export default function TradeSim() {
   
   const chartDataRef = useRef<{ [key: string]: any[] }>();
   chartDataRef.current = chartData;
-
-  const [hasMounted, setHasMounted] = useState(false);
-  useEffect(() => {
-    setHasMounted(true);
-  }, []);
 
   const [isAssetSelectorOpen, setIsAssetSelectorOpen] = useState(false);
   
@@ -150,6 +130,10 @@ export default function TradeSim() {
       isWin = finalPrice > entryPrice;
     } else { // sell
       isWin = finalPrice < entryPrice;
+    }
+
+    if (isWin) {
+      setWinCount(prev => prev + 1);
     }
 
     const winAmount = amount * 0.9;
@@ -204,79 +188,86 @@ export default function TradeSim() {
     heartbeatSoundRef.current = heartbeatSound;
   }, []);
 
-  // Chart data generation
-  useEffect(() => {
-    const timeframeMillis = timeframeDurations[activeTimeframe];
-
-    let initialData: any[] = [];
-    const now = new Date().getTime();
-    const startTime = Math.floor(now / timeframeMillis) * timeframeMillis - (200 * timeframeMillis);
-    
-    let lastCandle: any = null;
-    for (let i = 0; i < 200; i++) {
+  const fetchInitialData = useCallback(async (pairId: string) => {
+    try {
+      const response = await fetch(`/api/market-data?pair=${pairId.replace('/', '')}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch market data');
+      }
+      const data = await response.json();
+      setChartData(prev => ({ ...prev, [pairId]: data.slice(0, 200) }));
+    } catch (error) {
+      console.error(error);
+      // Fallback to random data on error
+      const timeframeMillis = timeframeDurations[activeTimeframe];
+      let initialData: any[] = [];
+      const now = new Date().getTime();
+      const startTime = Math.floor(now / timeframeMillis) * timeframeMillis - (200 * timeframeMillis);
+      let lastCandle: any = null;
+      for (let i = 0; i < 200; i++) {
         const candleTime = startTime + i * timeframeMillis;
-
-        const open = lastCandle ? lastCandle.c : activePair.basePrice + (Math.random() - 0.5) * (activePair.basePrice * 0.0005);
-        const close = open + (Math.random() - 0.5) * (activePair.basePrice * 0.0005);
-        const high = Math.max(open, close) + Math.random() * (activePair.basePrice * 0.0005 * 0.5);
-        const low = Math.min(open, close) - Math.random() * (activePair.basePrice * 0.0005 * 0.5);
-
-        const candle = { x: candleTime, o: open, h: high, l: low, c: close };
-        initialData.push(candle);
-        lastCandle = candle;
+        const open = lastCandle ? lastCandle.c : allCurrencyPairs.find(p=>p.id === pairId)!.basePrice;
+        const close = open + (Math.random() - 0.5) * (open * 0.0005);
+        const high = Math.max(open, close) + Math.random() * (open * 0.0005 * 0.5);
+        const low = Math.min(open, close) - Math.random() * (open * 0.0005 * 0.5);
+        initialData.push({ x: candleTime, o: open, h: high, l: low, c: close });
+        lastCandle = initialData[initialData.length-1];
+      }
+      setChartData(prev => ({ ...prev, [pairId]: initialData }));
     }
-    setChartData(prev => ({ ...prev, [activePairId]: initialData }));
-    
-  }, [activePairId, activeTimeframe, activePair.basePrice]);
+  }, [activeTimeframe]);
 
-  const updateData = useCallback(() => {
-    setChartData(prevData => {
-        const currentPairData = prevData[activePairId];
-        if (!currentPairData || currentPairData.length === 0) {
-            return prevData;
+  useEffect(() => {
+    fetchInitialData(activePairId);
+  }, [activePairId, fetchInitialData]);
+
+
+  const updateData = useCallback(async () => {
+    try {
+        const response = await fetch(`/api/market-data?pair=${activePairId.replace('/', '')}&latest=true`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch latest price');
         }
+        const latestCandle = await response.json();
 
-        const timeframeMillis = timeframeDurations[activeTimeframe];
-        const lastCandle = currentPairData[currentPairData.length - 1];
-        
-        const newPrice = generateRandomPriceMovement(lastCandle.c, predictionDirection, activePair.basePrice);
-
-        const now = new Date().getTime();
-
-        if (now >= lastCandle.x + timeframeMillis) {
-            const newCandle = {
-                x: lastCandle.x + timeframeMillis,
-                o: lastCandle.c,
-                h: Math.max(lastCandle.c, newPrice),
-                l: Math.min(lastCandle.c, newPrice),
-                c: newPrice
-            };
-            
-            const newData = [...currentPairData, newCandle];
-            if (newData.length > 500) {
-                newData.shift();
+        setChartData(prevData => {
+            const currentPairData = prevData[activePairId];
+            if (!currentPairData || currentPairData.length === 0) {
+                return { ...prevData, [activePairId]: [latestCandle] };
             }
-            return { ...prevData, [activePairId]: newData };
-        } else {
-            const updatedLastCandle = {
-                ...lastCandle,
-                c: newPrice,
-                h: Math.max(lastCandle.h, newPrice),
-                l: Math.min(lastCandle.l, newPrice),
-            };
-            
-            const newData = [...currentPairData.slice(0, -1), updatedLastCandle];
-            return { ...prevData, [activePairId]: newData };
-        }
-    });
-  }, [activePairId, activeTimeframe, predictionDirection, activePair.basePrice]);
+
+            const timeframeMillis = timeframeDurations[activeTimeframe];
+            const lastCandle = currentPairData[currentPairData.length - 1];
+
+            if (latestCandle.x >= lastCandle.x + timeframeMillis) {
+                const newData = [...currentPairData, latestCandle];
+                if (newData.length > 500) {
+                    newData.shift();
+                }
+                return { ...prevData, [activePairId]: newData };
+            } else {
+                const updatedLastCandle = {
+                    ...lastCandle,
+                    c: latestCandle.c,
+                    h: Math.max(lastCandle.h, latestCandle.h),
+                    l: Math.min(lastCandle.l, latestCandle.l),
+                };
+                const newData = [...currentPairData.slice(0, -1), updatedLastCandle];
+                return { ...prevData, [activePairId]: newData };
+            }
+        });
+    } catch (error) {
+        console.error("Failed to update data, using fallback", error);
+    }
+  }, [activePairId, activeTimeframe]);
 
 
   // Update chart data on an interval
   useEffect(() => {
-    const interval = setInterval(updateData, 1000); // Update every second
+    const interval = setInterval(updateData, 15000); // Update every 15 seconds for real data
     return () => clearInterval(interval);
   }, [updateData]);
+
 
   // Update current time display
   useEffect(() => {
@@ -383,24 +374,17 @@ export default function TradeSim() {
   // Prediction Countdown Logic
   useEffect(() => {
       const timer = setInterval(() => {
-          setPredictions(prevPredictions => {
-              let hasChanged = false;
-              const newPredictions = prevPredictions.map(p => {
+          setPredictions(prevPredictions => 
+              prevPredictions.map(p => {
                   if (p.status === 'active' && p.countdown > 0) {
-                      hasChanged = true;
                       return { ...p, countdown: p.countdown - 1 };
                   }
                   if (p.status === 'active' && p.countdown === 0) {
-                      hasChanged = true;
                       return { ...p, status: 'expired' };
                   }
                   return p;
-              });
-              if (hasChanged) {
-                  return newPredictions;
-              }
-              return prevPredictions;
-          });
+              })
+          );
       }, 1000);
 
       return () => clearInterval(timer);
@@ -408,26 +392,24 @@ export default function TradeSim() {
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!chatWrapperRef.current || !chartAreaRef.current) return;
+    
+    // Set initial position on first drag
+    if (!chatPosition) {
+        const chatRect = chatWrapperRef.current.getBoundingClientRect();
+        const chartAreaRect = chartAreaRef.current.getBoundingClientRect();
+        setChatPosition({
+            top: chatRect.top - chartAreaRect.top,
+            left: chatRect.left - chartAreaRect.left
+        });
+    }
+
     setIsDragging(true);
 
     const chatRect = chatWrapperRef.current.getBoundingClientRect();
-    const chartAreaRect = chartAreaRef.current.getBoundingClientRect();
-    
-    // If first drag, set position state from current CSS-based position
-    const currentPos = chatPosition || {
-      top: chatRect.top - chartAreaRect.top,
-      left: chatRect.left - chartAreaRect.left
-    };
-    
     dragOffset.current = {
       x: e.clientX - chatRect.left,
       y: e.clientY - chatRect.top,
     };
-
-    // Switch to state-based positioning if not already
-    if (!chatPosition) {
-      setChatPosition(currentPos);
-    }
     
     e.preventDefault();
   };
@@ -565,6 +547,14 @@ export default function TradeSim() {
 
   const currentChart = chartData[activePairId] || [];
   const currentPrice = currentChart.length > 0 ? currentChart[currentChart.length - 1].c : null;
+  
+  const defaultChatTop = typeof window !== 'undefined' ? window.innerHeight - 500 : 200;
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+        const initialTop = window.innerHeight - 520;
+        setChatPosition({ top: initialTop > 20 ? initialTop : 20, left: 16 });
+    }
+  }, []);
 
   return (
     <div className="flex md:flex-row flex-col h-screen w-full bg-background text-sm text-foreground font-body">
@@ -594,6 +584,7 @@ export default function TradeSim() {
         <nav className="flex flex-col space-y-2 items-center">
           <Button variant="ghost" size="icon"><Briefcase className="h-5 w-5" /></Button>
           <TradeHistoryPanel history={tradeHistory} allPairs={allCurrencyPairs} />
+          <AchievementsPanel winCount={winCount} />
           <Button variant="ghost" size="icon"><Megaphone className="h-5 w-5" /></Button>
           <Button variant="ghost" size="icon"><PlayCircle className="h-5 w-5" /></Button>
           <Button variant="ghost" size="icon"><MessageCircle className="h-5 w-5" /></Button>
@@ -702,7 +693,7 @@ export default function TradeSim() {
             style={
               chatPosition
                 ? { top: chatPosition.top, left: chatPosition.left, bottom: 'auto', right: 'auto' }
-                : { bottom: '1rem', left: '1rem' }
+                : { top: '200px', left: '16px' }
             }
           >
             <div className="flex flex-col items-end gap-2">
@@ -855,7 +846,7 @@ export default function TradeSim() {
                 ))}
             </div>
             <div className="text-xs text-muted-foreground w-36 text-right">
-                {hasMounted && currentTime.toLocaleString('pt-BR', { day: 'numeric', month: 'short', year:'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                {currentTime.toLocaleString('pt-BR', { day: 'numeric', month: 'short', year:'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </div>
         </footer>
       </div>
@@ -920,7 +911,7 @@ export default function TradeSim() {
                 className="group rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
                 <Image
-                    src="https://i.imgur.com/nujNEMB.png"
+                    src="https://imgur.com/nujNEMB.png"
                     alt="Modo Pro"
                     width={80}
                     height={80}

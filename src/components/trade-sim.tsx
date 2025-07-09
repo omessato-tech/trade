@@ -925,7 +925,6 @@ export default function TradeSim() {
                                     <DropdownMenuSeparator />
                                     <DropdownMenuRadioGroup value={theme} onValueChange={handleThemeChange}>
                                         <DropdownMenuRadioItem value="dark">Padrão</DropdownMenuRadioItem>
-                                        <DropdownMenuRadioItem value="light">Claro</DropdownMenuRadioItem>
                                         <DropdownMenuRadioItem value="theme-brasil">Brasil</DropdownMenuRadioItem>
                                     </DropdownMenuRadioGroup>
                                 </DropdownMenuContent>

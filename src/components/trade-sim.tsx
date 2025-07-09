@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from '@/lib/utils';
 import { 
     Plus, History, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, Bitcoin, X,
-    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy, Award, Medal, Menu, Minus, Palette
+    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy, Award, Medal, Menu, Minus, Palette, Zap
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
@@ -27,7 +27,6 @@ import { TutorialGuide, type TutorialStep } from './tutorial-guide';
 import type { Chart as ChartJS } from 'chart.js';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Switch } from './ui/switch';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 
 
@@ -143,7 +142,7 @@ export default function TradeSim() {
   const [predictions, setPredictions] = useState<PredictionMessage[]>([]);
   const [isChatMinimized, setIsChatMinimized] = useState(true);
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
-  const [isProMode, setIsProMode] = useState(false);
+  const [isTurboMode, setIsTurboMode] = useState(false);
   
   const chartDataRef = useRef<{ [key: string]: any[] }>();
   chartDataRef.current = chartData;
@@ -736,32 +735,6 @@ export default function TradeSim() {
     },
   ];
 
-  const NumberInputWithControls = ({ label, value, onDecrement, onIncrement, onChange }: {
-    label: string;
-    value: number;
-    onDecrement: () => void;
-    onIncrement: () => void;
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  }) => (
-      <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground uppercase tracking-wider">{label}</Label>
-          <div className="relative flex items-center">
-              <Input
-                  type="text"
-                  value={formatCurrency(value)}
-                  onChange={onChange}
-                  className="h-9 text-center bg-input border-border pr-8 pl-8"
-              />
-              <Button variant="ghost" size="icon" className="absolute left-0 h-9 w-9 text-muted-foreground" onClick={onDecrement}>
-                  <Minus className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="absolute right-0 h-9 w-9 text-muted-foreground" onClick={onIncrement}>
-                  <Plus className="h-4 w-4" />
-              </Button>
-          </div>
-      </div>
-  );
-
   return (
     <div className="flex md:flex-row flex-col h-screen w-full bg-background text-sm text-foreground font-body">
       {isTutorialOpen && <TutorialGuide steps={tutorialSteps} onComplete={handleTutorialComplete} isOpen={isTutorialOpen} />}
@@ -1234,94 +1207,86 @@ export default function TradeSim() {
       </div>
       
       {/* Right Sidebar / Mobile Bottom Bar */}
-      <aside className="w-full md:w-72 md:flex-none bg-[#1e222d] p-4 border-t md:border-t-0 md:border-l border-border flex flex-col gap-4">
-        <div className="flex flex-col gap-4">
-            <div className="flex justify-between items-center text-lg font-mono">
-                <span className="text-muted-foreground">Saldo:</span>
-                <span className="font-bold text-white">R$ {balance.toFixed(2)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-                <Label htmlFor="pro-mode" className="text-white">Modo PRO</Label>
-                <Switch id="pro-mode" checked={isProMode} onCheckedChange={setIsProMode} />
-            </div>
-        </div>
-        
-        <Separator className="!bg-border/50" />
+      <aside 
+          className="w-full md:w-72 md:flex-none p-4 flex flex-col gap-4 bg-cover bg-center border-t md:border-t-0 md:border-l border-border"
+          style={{ backgroundImage: "url('https://i.imgur.com/7pKcBJY.png')" }}
+      >
+          <div className="text-center bg-black/30 backdrop-blur-sm p-2 rounded-lg">
+              <span className="text-sm text-white/70">Saldo</span>
+              <span className="block text-2xl font-bold text-white font-mono">R$ {balance.toFixed(2)}</span>
+          </div>
 
-        {!isProMode ? (
-            <>
-                {/* Simple Mode */}
-                <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Tempo</Label>
-                    <Select value={String(tradeDuration)} onValueChange={(val) => setTradeDuration(Number(val))}>
-                        <SelectTrigger className="h-9 bg-input border-border">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="30">30 segundos</SelectItem>
-                            <SelectItem value="60">1 minuto</SelectItem>
-                            <SelectItem value="300">5 minutos</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                
-                <NumberInputWithControls 
-                    label="Investimento"
-                    value={tradeAmount}
-                    onChange={handleInvestmentChange}
-                    onIncrement={handleIncrementAmount}
-                    onDecrement={handleDecrementAmount}
-                />
+          <div className="flex-grow" />
 
-                <div className="flex flex-col gap-2 mt-auto">
-                    <Button ref={buyButtonRef} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-12 text-base" onClick={() => handleTrade('buy', tradeAmount)}>
-                        <ArrowUpRight className="h-5 w-5 mr-2" />
-                        CALL
-                    </Button>
-                    <Button ref={sellButtonRef} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold h-12 text-base" onClick={() => handleTrade('sell', tradeAmount)}>
-                        <ArrowDownLeft className="h-5 w-5 mr-2" />
-                        PUT
-                    </Button>
-                </div>
-            </>
-        ) : (
-            <>
-                {/* PRO Mode */}
-                <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Tempo</Label>
-                    <Select value={String(tradeDuration)} onValueChange={(val) => setTradeDuration(Number(val))}>
-                        <SelectTrigger className="h-9 bg-input border-border">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="30">30 segundos</SelectItem>
-                            <SelectItem value="60">1 minuto</SelectItem>
-                            <SelectItem value="300">5 minutos</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
+          <div className="flex flex-col items-center gap-4">
 
-                <NumberInputWithControls 
-                    label="Investimento"
-                    value={tradeAmount}
-                    onChange={handleInvestmentChange}
-                    onIncrement={handleIncrementAmount}
-                    onDecrement={handleDecrementAmount}
-                />
-                
-                <div className="grid grid-cols-2 gap-2 mt-auto">
-                    <Button ref={buyButtonRef} className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-12 text-base" onClick={() => handleTrade('buy', tradeAmount)}>
-                        <ArrowUpRight className="h-5 w-5 mr-2" />
-                        CALL
-                    </Button>
-                    <Button ref={sellButtonRef} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold h-12 text-base" onClick={() => handleTrade('sell', tradeAmount)}>
-                        <ArrowDownLeft className="h-5 w-5 mr-2" />
-                        PUT
-                    </Button>
-                </div>
-            </>
-        )}
+              <div className="w-full max-w-[200px] mx-auto">
+                  <Label className="text-xs text-white/70 uppercase tracking-wider text-center block mb-1">Tempo</Label>
+                  <Select value={String(tradeDuration)} onValueChange={(val) => setTradeDuration(Number(val))}>
+                      <SelectTrigger className="h-9 bg-input/80 border-white/20 text-white backdrop-blur-sm">
+                          <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                          <SelectItem value="30">30 segundos</SelectItem>
+                          <SelectItem value="60">1 minuto</SelectItem>
+                          <SelectItem value="300">5 minutos</SelectItem>
+                      </SelectContent>
+                  </Select>
+              </div>
+
+              <div className="flex items-center justify-around w-full py-4">
+                  <Button variant="outline" size="icon" className="h-12 w-12 rounded-full border-2 border-yellow-400/50 bg-black/30 text-yellow-400 hover:bg-yellow-400/20" onClick={handleDecrementAmount}>
+                      <Minus className="h-6 w-6" />
+                  </Button>
+
+                  <div className="relative w-36 h-36 flex items-center justify-center">
+                      <button
+                          ref={buyButtonRef}
+                          onClick={() => handleTrade('buy', tradeAmount)}
+                          className="absolute top-0 w-full h-1/2 bg-primary/80 hover:bg-primary rounded-t-full z-10 flex items-start justify-center pt-3 text-sm text-primary-foreground font-bold transition-colors"
+                      >
+                          CALL
+                      </button>
+                      <button
+                          ref={sellButtonRef}
+                          onClick={() => handleTrade('sell', tradeAmount)}
+                          className="absolute bottom-0 w-full h-1/2 bg-destructive/80 hover:bg-destructive rounded-b-full z-10 flex items-end justify-center pb-3 text-sm text-destructive-foreground font-bold transition-colors"
+                      >
+                          PUT
+                      </button>
+
+                      <div className="absolute w-[70%] h-[70%] bg-black/60 rounded-full flex flex-col items-center justify-center text-white z-20 border-2 border-yellow-400 backdrop-blur-sm">
+                          <span className="text-xs text-white/70">Valor</span>
+                          <span className="font-bold text-2xl font-mono">
+                              {formatCurrency(tradeAmount)}
+                          </span>
+                      </div>
+                  </div>
+
+                  <Button variant="outline" size="icon" className="h-12 w-12 rounded-full border-2 border-yellow-400/50 bg-black/30 text-yellow-400 hover:bg-yellow-400/20" onClick={handleIncrementAmount}>
+                      <Plus className="h-6 w-6" />
+                  </Button>
+              </div>
+
+              <div className="w-full max-w-[200px] mx-auto mt-2">
+                   <Button 
+                      variant={isTurboMode ? "default" : "outline"}
+                      className={cn(
+                          "w-full h-12 border-2 text-lg font-bold transition-all",
+                          isTurboMode 
+                              ? 'bg-yellow-400 text-black border-yellow-400 hover:bg-yellow-500' 
+                              : 'border-yellow-400 bg-black/30 text-yellow-400 hover:bg-yellow-400/20'
+                      )}
+                      onClick={() => setIsTurboMode(prev => !prev)}
+                  >
+                      <Zap className="h-5 w-5 mr-2" />
+                      <span>{isTurboMode ? "TURBO ON" : "TURBO"}</span>
+                  </Button>
+              </div>
+          </div>
       </aside>
     </div>
   );
 }
+
+    

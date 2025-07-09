@@ -244,47 +244,26 @@ export default function TradeSim() {
     if (!pair) return;
 
     try {
-        const response = await fetch(`/api/market-data?pair=${pair.id}&category=${pair.category}&latest=true`);
+        const response = await fetch(`/api/market-data?pair=${pair.id}&category=${pair.category}`);
         if (!response.ok) {
-            console.warn(`Failed to fetch latest price for ${pair.id}. Status: ${response.status}`);
+            console.warn(`Failed to fetch latest data for ${pair.id}. Status: ${response.status}`);
             return;
         }
-        const latestCandle = await response.json();
-        if (!latestCandle || latestCandle.error) {
-            console.warn(`Empty or error data for latest price of ${pair.id}:`, latestCandle?.error);
+        const data = await response.json();
+        if (!data || data.error || !Array.isArray(data)) {
+            console.warn(`Empty or error data for latest price of ${pair.id}:`, data?.error);
             return;
         }
 
-        setChartData(prevData => {
-            const currentPairData = prevData[activePairId];
-            if (!currentPairData || currentPairData.length === 0) {
-                return prevData;
-            }
+        setChartData(prevData => ({
+             ...prevData,
+             [activePairId]: data.slice(-500) // Just replace with the latest dataset
+        }));
 
-            const timeframeMillis = timeframeDurations[activeTimeframe];
-            const lastCandle = currentPairData[currentPairData.length - 1];
-
-            if (latestCandle.x >= lastCandle.x + timeframeMillis) {
-                const newData = [...currentPairData, latestCandle];
-                if (newData.length > 500) {
-                    newData.shift();
-                }
-                return { ...prevData, [activePairId]: newData };
-            } else {
-                const updatedLastCandle = {
-                    ...lastCandle,
-                    c: latestCandle.c,
-                    h: Math.max(lastCandle.h, latestCandle.c),
-                    l: Math.min(lastCandle.l, latestCandle.c),
-                };
-                const newData = [...currentPairData.slice(0, -1), updatedLastCandle];
-                return { ...prevData, [activePairId]: newData };
-            }
-        });
     } catch (error) {
         console.warn(`Failed to update data for ${pair.id}. Error:`, error);
     }
-  }, [activePairId, activeTimeframe]);
+  }, [activePairId]);
 
 
   // Update chart data on an interval

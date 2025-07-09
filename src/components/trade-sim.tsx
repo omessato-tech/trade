@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { 
     Plus, Briefcase, History, Megaphone, PlayCircle, MessageCircle, MoreHorizontal, 
     Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, Bitcoin, X,
-    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy, Award, Medal, Settings
+    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy, Award, Medal, Menu
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
@@ -130,7 +130,7 @@ export default function TradeSim() {
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryItem[]>([]);
   const [winCount, setWinCount] = useState(0);
   const [rankUpInfo, setRankUpInfo] = useState<{ rank: Achievement; nextRank?: Achievement } | null>(null);
-  const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const prevWinCountRef = useRef<number>(winCount);
 
   // State for milestone popups
@@ -298,12 +298,21 @@ export default function TradeSim() {
         }
 
         let needsHeartbeat = false;
-        let balanceChange = 0;
-        let newWins = 0;
-        const newHistoryItems: TradeHistoryItem[] = [];
-        const tradesToKeep: TradeDetails[] = [];
         
-        const updatedTrades = trades.map(trade => {
+        const finishedTradesInfo: {
+            balanceChange: number;
+            newHistoryItems: TradeHistoryItem[];
+            newWins: number;
+        } = {
+            balanceChange: 0,
+            newHistoryItems: [],
+            newWins: 0,
+        };
+        
+        const tradesToKeep: TradeDetails[] = [];
+        const now = Date.now();
+
+        for (const trade of trades) {
             const newCountdown = trade.countdown - 1;
 
             if (newCountdown <= 0) {
@@ -316,15 +325,16 @@ export default function TradeSim() {
                     const resultAmount = isWin ? winAmount : -amount;
                     
                     if (isWin) {
-                        newWins += 1;
-                        balanceChange += amount + winAmount;
+                        finishedTradesInfo.newWins += 1;
+                        finishedTradesInfo.balanceChange += amount + winAmount; // Return initial amount + profit
                         if (isSoundEnabled) gainSoundRef.current?.play().catch(console.error);
                     } else {
+                        // Loss amount was already deducted, so no balance change on close.
                         if (isSoundEnabled) lossSoundRef.current?.play().catch(console.error);
                     }
                     
-                    newHistoryItems.push({
-                        id: `${new Date().getTime()}-${Math.random()}`,
+                    finishedTradesInfo.newHistoryItems.push({
+                        id: `${now}-${Math.random()}`,
                         pairId: trade.pairId,
                         timestamp: new Date(),
                         type: trade.type,
@@ -335,7 +345,7 @@ export default function TradeSim() {
                         isWin: isWin,
                     });
                 }
-                return null; // Mark for removal
+                // Trade is finished, don't add to tradesToKeep
             } else {
                 const currentPairChartData = chartDataRef.current?.[trade.pairId];
                 let newProfitState = trade.profitState;
@@ -348,17 +358,17 @@ export default function TradeSim() {
                     needsHeartbeat = true;
                 }
                 tradesToKeep.push({ ...trade, countdown: newCountdown, profitState: newProfitState });
-                return { ...trade, countdown: newCountdown, profitState: newProfitState }; // keep it
             }
-        }).filter(Boolean) as TradeDetails[];
+        }
         
-        setActiveTrades(updatedTrades);
+        // Update states outside the loop
+        setActiveTrades(tradesToKeep);
 
-        if (balanceChange > 0 || newHistoryItems.length > 0) {
-            setBalance(prev => prev + balanceChange);
-            setWinCount(prev => prev + newWins);
-            setTradeHistory(prev => [...newHistoryItems, ...prev]);
-            setVisibleResults(prev => [...newHistoryItems, ...prev].slice(0, 5));
+        if (finishedTradesInfo.newHistoryItems.length > 0) {
+            setBalance(prev => prev + finishedTradesInfo.balanceChange);
+            setWinCount(prev => prev + finishedTradesInfo.newWins);
+            setTradeHistory(prev => [...finishedTradesInfo.newHistoryItems, ...prev]);
+            setVisibleResults(prev => [...finishedTradesInfo.newHistoryItems, ...prev].slice(0, 5));
         }
 
         if (isSoundEnabled) {
@@ -727,11 +737,9 @@ export default function TradeSim() {
         }
       }}>
           <AlertDialogContent className="bg-transparent border-0 p-0 w-auto shadow-none focus-visible:ring-0 focus-visible:ring-offset-0">
-              <AlertDialogHeader className="sr-only">
-                  <AlertDialogTitle>Primeira Operação Concluída</AlertDialogTitle>
-                  <AlertDialogDescription>
-                      Parabéns por completar sua primeira operação.
-                  </AlertDialogDescription>
+               <AlertDialogHeader className="sr-only">
+                  <AlertDialogTitle>Primeira Operação Concluída!</AlertDialogTitle>
+                  <AlertDialogDescription>Parabéns por completar sua primeira operação. Você está no caminho certo!</AlertDialogDescription>
               </AlertDialogHeader>
               <div className="relative">
                   <Image 
@@ -756,11 +764,9 @@ export default function TradeSim() {
 
       <AlertDialog open={showSecondMilestone} onOpenChange={setShowSecondMilestone}>
           <AlertDialogContent className="bg-transparent border-0 p-0 w-auto shadow-none focus-visible:ring-0 focus-visible:ring-offset-0">
-              <AlertDialogHeader className="sr-only">
-                  <AlertDialogTitle>Continue Assim!</AlertDialogTitle>
-                  <AlertDialogDescription>
-                      Você está no caminho certo para se tornar um mestre trader.
-                  </AlertDialogDescription>
+               <AlertDialogHeader className="sr-only">
+                  <AlertDialogTitle>Você é um Mestre Trader!</AlertDialogTitle>
+                  <AlertDialogDescription>Continue assim e domine o mercado. Sua jornada está apenas começando.</AlertDialogDescription>
               </AlertDialogHeader>
               <div className="relative">
                   <Image 
@@ -834,9 +840,6 @@ export default function TradeSim() {
           <div ref={achievementsButtonRef} className="inline-block">
             <AchievementsPanel winCount={winCount} achievements={achievements} />
           </div>
-          <Button variant="ghost" size="icon"><Megaphone className="h-5 w-5" /></Button>
-          <Button variant="ghost" size="icon"><PlayCircle className="h-5 w-5" /></Button>
-          <Button variant="ghost" size="icon"><MessageCircle className="h-5 w-5" /></Button>
           <Button variant="ghost" size="icon" onClick={() => setIsSoundEnabled(prev => !prev)}>
             {isSoundEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
           </Button>
@@ -847,7 +850,69 @@ export default function TradeSim() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Currency Pair Selector */}
         <div className="flex-none flex items-center gap-1 p-1 bg-[#1e222d] border-b border-border overflow-x-auto no-scrollbar">
-            <div className="flex items-center justify-center h-10 px-2 shrink-0">
+            <div className="p-1 md:hidden">
+              <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+                  <SheetTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                          <Menu className="h-5 w-5" />
+                      </Button>
+                  </SheetTrigger>
+                  <SheetContent side="left" className="w-[280px] p-0 flex flex-col bg-[#13161c] border-r border-border/50">
+                      <SheetHeader className="p-4 border-b border-border/50 text-left">
+                          <SheetTitle className="text-xl font-bold">Menu Principal</SheetTitle>
+                      </SheetHeader>
+                      <div className="flex flex-col p-4 gap-4 border-b border-border/50">
+                           <div>
+                                <p className="text-xs text-muted-foreground">Saldo da Conta</p>
+                                <p className="text-primary font-bold text-2xl">R$ {balance.toFixed(2)}</p>
+                            </div>
+                           <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10 hover:text-primary">
+                              + DEPOSITAR
+                          </Button>
+                      </div>
+                      <ScrollArea className="flex-1">
+                          <div className="flex flex-col gap-1 p-2">
+                              <TradeHistoryPanel history={tradeHistory} allPairs={allCurrencyPairs} />
+                              <AchievementsPanel winCount={winCount} achievements={achievements} />
+                              <Button variant="ghost" className="justify-start gap-2 px-3">
+                                <Megaphone className="h-5 w-5" /> Notícias
+                              </Button>
+                              <Button variant="ghost" className="justify-start gap-2 px-3">
+                                <PlayCircle className="h-5 w-5" /> Tutoriais
+                              </Button>
+                              <Button variant="ghost" className="justify-start gap-2 px-3">
+                                <MessageCircle className="h-5 w-5" /> Suporte
+                              </Button>
+                              <Button variant="ghost" className="justify-start gap-2 px-3" onClick={() => setIsSoundEnabled(prev => !prev)}>
+                                {isSoundEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+                                {isSoundEnabled ? 'Desativar Som' : 'Ativar Som'}
+                              </Button>
+                          </div>
+                          <Separator className="my-2 bg-border/50" />
+                          <div className="p-2 space-y-4">
+                              <h3 className="px-3 font-semibold text-muted-foreground">Gráfico</h3>
+                              <div className="flex items-center justify-around gap-2">
+                                  <Button variant="ghost" className="flex-col h-auto gap-1"><Info className="h-5 w-5" /><span className="text-xs">Info</span></Button>
+                                  <Button variant="ghost" className="flex-col h-auto gap-1"><Bell className="h-5 w-5" /><span className="text-xs">Alertas</span></Button>
+                                  <Button variant="ghost" className="flex-col h-auto gap-1"><CandlestickChart className="h-5 w-5" /><span className="text-xs">Tipo</span></Button>
+                                  <Button variant="ghost" className="flex-col h-auto gap-1" onClick={() => { handleZoom(); setIsMobileMenuOpen(false); }}><ZoomIn className="h-5 w-5" /><span className="text-xs">Zoom</span></Button>
+                              </div>
+                              <div className="space-y-2">
+                                  <p className="text-center text-sm text-muted-foreground">Tempo</p>
+                                  <div className="flex items-center justify-center gap-2 text-xs">
+                                      {timeframes.map(tf => (
+                                          <Button key={tf} variant={activeTimeframe === tf ? 'secondary' : 'ghost'} size="sm" className="h-9 px-4 flex-1" onClick={() => { setActiveTimeframe(tf); setIsMobileMenuOpen(false); }}>
+                                              {tf}
+                                          </Button>
+                                      ))}
+                                  </div>
+                              </div>
+                          </div>
+                      </ScrollArea>
+                  </SheetContent>
+              </Sheet>
+            </div>
+            <div className="hidden md:flex items-center justify-center h-10 px-2 shrink-0">
                 <Image src="https://i.imgur.com/7muedyE.png" alt="TradeSim Logo" width={120} height={36} className="object-contain" />
             </div>
             {openPairs.map(pairId => {
@@ -912,39 +977,6 @@ export default function TradeSim() {
         <main ref={chartAreaRef} className="flex-1 relative flex flex-col">
             <div className="absolute inset-0 bg-[url('https://i.imgur.com/3Dir0GB.png')] bg-cover bg-center bg-no-repeat brightness-50 z-0"></div>
             
-            <div className="absolute top-2 right-2 z-20 md:hidden">
-                <Sheet open={isMobileSettingsOpen} onOpenChange={setIsMobileSettingsOpen}>
-                    <SheetTrigger asChild>
-                        <Button variant="ghost" size="icon" className="bg-black/50 hover:bg-black/70 text-white">
-                            <Settings className="h-5 w-5" />
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent side="bottom" className="bg-[#1e222d] border-t border-border/50 text-foreground rounded-t-lg">
-                        <SheetHeader className="text-center">
-                            <SheetTitle>Configurações do Gráfico</SheetTitle>
-                        </SheetHeader>
-                        <div className="pt-4 grid gap-4">
-                            <div className="flex items-center justify-around gap-2">
-                                <Button variant="ghost" className="flex-col h-auto gap-1"><Info className="h-5 w-5" /><span className="text-xs">Info</span></Button>
-                                <Button variant="ghost" className="flex-col h-auto gap-1"><Bell className="h-5 w-5" /><span className="text-xs">Alertas</span></Button>
-                                <Button variant="ghost" className="flex-col h-auto gap-1"><CandlestickChart className="h-5 w-5" /><span className="text-xs">Tipo</span></Button>
-                                <Button variant="ghost" className="flex-col h-auto gap-1" onClick={() => { handleZoom(); setIsMobileSettingsOpen(false); }}><ZoomIn className="h-5 w-5" /><span className="text-xs">Zoom</span></Button>
-                            </div>
-                            <Separator className="!bg-border/50" />
-                            <div>
-                                <p className="text-center text-sm text-muted-foreground mb-2">Tempo</p>
-                                <div className="flex items-center justify-center gap-2 text-xs">
-                                    {timeframes.map(tf => (
-                                        <Button key={tf} variant={activeTimeframe === tf ? 'secondary' : 'ghost'} size="sm" className="h-9 px-4 flex-1" onClick={() => { setActiveTimeframe(tf); setIsMobileSettingsOpen(false); }}>
-                                            {tf}
-                                        </Button>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </SheetContent>
-                </Sheet>
-            </div>
             {activeTradesForCurrentPair.length > 0 && (
                 <div className="absolute top-2 left-2 md:top-4 md:left-4 z-20 flex flex-col items-start gap-2 bg-black/50 p-2 rounded-lg backdrop-blur-sm font-mono max-h-48 overflow-y-auto">
                    {activeTradesForCurrentPair.map(trade => (
@@ -1177,11 +1209,17 @@ export default function TradeSim() {
         </div>
         <Separator className="!bg-border/50 hidden md:block" />
         
-        <div className="flex flex-row md:flex-col items-center md:items-stretch gap-3 text-sm">
-            <div className="flex flex-1 md:flex-initial flex-col gap-3">
+        <div className="flex flex-row md:flex-col items-stretch md:items-stretch gap-3 text-sm">
+           {/* Mobile Balance Display */}
+           <div className="flex-col justify-center items-center gap-1 p-2 rounded-lg bg-background/20 hidden max-md:flex">
+              <p className="text-xs text-muted-foreground">Saldo</p>
+              <p className="text-primary font-bold text-base whitespace-nowrap">R$ {balance.toFixed(2)}</p>
+          </div>
+
+            <div className="flex flex-1 md:flex-initial flex-col gap-2 justify-center">
                 <div className="flex justify-between items-center">
-                    <label htmlFor="invest-amount" className="text-muted-foreground">INVEST.</label>
-                    <Input id="invest-amount" type="number" value={tradeAmount} onChange={handleAmountChange} className="w-20 md:w-24 bg-input border-border text-right text-destructive font-bold" />
+                    <label htmlFor="invest-amount" className="text-muted-foreground text-xs">INVEST.</label>
+                    <Input id="invest-amount" type="number" value={tradeAmount} onChange={handleAmountChange} className="w-24 bg-input border-border text-right text-destructive font-bold h-9" />
                 </div>
                 <div className="hidden md:flex justify-between items-center">
                     <p className="text-muted-foreground">ALAV.</p>
@@ -1193,7 +1231,7 @@ export default function TradeSim() {
                 </div>
             </div>
 
-            <div className="flex flex-1 md:flex-initial flex-row md:flex-col gap-3 md:mt-auto">
+            <div className="flex flex-1 md:flex-initial flex-row md:flex-col gap-3">
                 <Button ref={buyButtonRef} size="lg" className="h-auto flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2 disabled:opacity-50" onClick={() => handleTrade('buy', tradeAmount)}>
                     <div className="flex items-center justify-between w-full">
                         <ArrowUpRight className="h-6 w-6" />
@@ -1248,5 +1286,3 @@ export default function TradeSim() {
     </div>
   );
 }
-
-    

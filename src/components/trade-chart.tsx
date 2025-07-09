@@ -17,12 +17,19 @@ interface EntryLine {
   state: 'profit' | 'loss' | null;
 }
 
-const TradeChart = ({ data, visibleRange, entryLines, currentPrice }: { 
-  data: any[], 
-  visibleRange?: number, 
-  entryLines: EntryLine[],
-  currentPrice: number | null
-}) => {
+interface TradeChartProps {
+  data: any[];
+  visibleRange?: number;
+  entryLines: EntryLine[];
+  currentPrice: number | null;
+}
+
+const TradeChart = React.forwardRef<ChartJS<'candlestick', any[], any>, TradeChartProps>(({ 
+  data, 
+  visibleRange, 
+  entryLines,
+  currentPrice
+}, ref) => {
 
   const chartData = {
     datasets: [{
@@ -166,7 +173,9 @@ const TradeChart = ({ data, visibleRange, entryLines, currentPrice }: {
     }
   };
 
-  return <Chart type='candlestick' data={chartData} options={options as any} />;
-};
+  return <Chart type='candlestick' ref={ref} data={chartData} options={options as any} />;
+});
+
+TradeChart.displayName = "TradeChart";
 
 export default TradeChart;

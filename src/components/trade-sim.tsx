@@ -24,6 +24,7 @@ import type { TradeHistoryItem } from './trade-history-panel';
 import { ScrollArea } from './ui/scroll-area';
 import { AchievementsPanel } from './achievements-panel';
 import { TutorialGuide, type TutorialStep } from './tutorial-guide';
+import type { Chart as ChartJS } from 'chart.js';
 
 
 const timeframes = ['5s', '30s', '1m', '5m'];
@@ -112,7 +113,7 @@ export default function TradeSim() {
   const [tradeAmount, setTradeAmount] = useState(4);
   const [leverage, setLeverage] = useState(300);
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
-  const [lastTradeResult, setLastTradeResult] = useState<{ amount: number; type: 'gain' | 'loss' } | null>(null);
+  const [visibleResults, setVisibleResults] = useState<TradeHistoryItem[]>([]);
   
   const gainSoundRef = useRef<HTMLAudioElement | null>(null);
   const lossSoundRef = useRef<HTMLAudioElement | null>(null);
@@ -149,6 +150,7 @@ export default function TradeSim() {
   const dragOffset = useRef({ x: 0, y: 0 });
   const chatWrapperRef = useRef<HTMLDivElement>(null);
   const chartAreaRef = useRef<HTMLElement>(null);
+  const chartRef = useRef<ChartJS<'candlestick', any[], any> | null>(null);
 
   // Refs for tutorial
   const buyButtonRef = useRef<HTMLButtonElement>(null);
@@ -278,6 +280,8 @@ export default function TradeSim() {
   useEffect(() => {
     if (tradesToResolve.length === 0) return;
 
+    const newResults: TradeHistoryItem[] = [];
+
     tradesToResolve.forEach(trade => {
         const currentChartData = chartDataRef.current?.[trade.pairId];
         if (!currentChartData || currentChartData.length === 0) {
@@ -310,11 +314,7 @@ export default function TradeSim() {
         };
         setTradeHistory(prev => [newHistoryItem, ...prev]);
 
-        setLastTradeResult({
-            amount: Math.abs(resultAmount),
-            type: isWin ? 'gain' : 'loss'
-        });
-        setTimeout(() => setLastTradeResult(null), 2000);
+        newResults.push(newHistoryItem);
 
         if (isSoundEnabled) {
             const sound = isWin ? gainSoundRef.current : lossSoundRef.current;
@@ -325,6 +325,10 @@ export default function TradeSim() {
           setBalance(prevBalance => prevBalance + amount + winAmount);
         }
     });
+    
+    if (newResults.length > 0) {
+        setVisibleResults(prev => [...newResults, ...prev].slice(0, 5));
+    }
 
     setTradesToResolve([]); // Clear the queue after processing
   }, [tradesToResolve, isSoundEnabled]);
@@ -629,6 +633,10 @@ export default function TradeSim() {
       if (activePairId === pairId) {
           setActivePairId(newOpenPairs[0]);
       }
+  };
+  
+  const handleDismissResult = (id: string) => {
+    setVisibleResults(prev => prev.filter(r => r.id !== id));
   };
 
 
@@ -990,32 +998,59 @@ export default function TradeSim() {
 
 
           <div className="flex-1 relative z-10">
-            {currentChart.length > 0 ? (
-                <TradeChart 
-                    data={currentChart} 
-                    visibleRange={zoomLevel} 
-                    entryLines={entryLinesForChart} 
-                    currentPrice={currentPrice} 
-                />
-            ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground">Carregando gráfico...</div>
-            )}
-            {lastTradeResult && (
-              <div
-                  key={Date.now()}
-                  className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none"
-              >
-                  <div
-                      className={cn(
-                          'text-5xl font-bold animate-result-pop',
-                          lastTradeResult.type === 'gain' ? 'text-primary' : 'text-destructive'
-                      )}
-                      style={{ textShadow: '0 2px 10px rgba(0,0,0,0.5)' }}
-                  >
-                      {lastTradeResult.type === 'gain' ? '+' : '-'}R$ {lastTradeResult.amount.toFixed(2)}
-                  </div>
+              {currentChart.length > 0 ? (
+                  <TradeChart
+                      ref={chartRef}
+                      data={currentChart}
+                      visibleRange={zoomLevel}
+                      entryLines={entryLinesForChart}
+                      currentPrice={currentPrice}
+                  />
+              ) : (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">Carregando gráfico...</div>
+              )}
+              <div className="absolute inset-0 pointer-events-none">
+                  {visibleResults.filter(r => r.pairId === activePairId).map(result => {
+                      const chart = chartRef.current;
+                      if (!chart) return null;
+
+                      const dataPointIndex = currentChart.findIndex(d => d.x >= result.timestamp.getTime());
+                      if (dataPointIndex === -1) return null;
+                      
+                      const dataPoint = chart.getDatasetMeta(0).data[dataPointIndex];
+                      if (!dataPoint) return null;
+                      
+                      const { x: pixelX, y: pixelY } = dataPoint.getProps(['x', 'y'], true);
+
+                      if (pixelX < 0 || pixelX > chart.width || pixelY < 0 || pixelY > chart.height) {
+                          return null;
+                      }
+
+                      return (
+                          <div
+                              key={result.id}
+                              className={cn(
+                                  "absolute z-50 pointer-events-auto flex items-center gap-2 rounded-md p-2 text-xs text-white shadow-lg -translate-x-1/2 -translate-y-[120%]",
+                                  result.isWin ? 'bg-primary/90' : 'bg-destructive/90'
+                              )}
+                              style={{ top: pixelY, left: pixelX }}
+                          >
+                              <div>
+                                  <p className="font-bold text-white/80">RESULTADO (P/L)</p>
+                                  <p className="text-sm font-bold">{result.isWin ? '+' : ''}R$ {result.resultAmount.toFixed(2)}</p>
+                              </div>
+                              <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 shrink-0 text-white/70 hover:bg-white/20 hover:text-white"
+                                  onClick={() => handleDismissResult(result.id)}
+                              >
+                                  <X className="h-4 w-4" />
+                              </Button>
+                          </div>
+                      );
+                  })}
               </div>
-            )}
           </div>
         </main>
         {/* Bottom Toolbar */}

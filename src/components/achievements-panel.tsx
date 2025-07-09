@@ -3,28 +3,15 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Trophy, Award, Medal, Lock, CheckCircle } from "lucide-react";
+import { Trophy, Lock, CheckCircle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import type { Achievement } from "./trade-sim";
 
-interface Achievement {
-    name: string;
-    wins: number;
-    icon: React.ElementType;
-    color: string;
-    glowColor: string;
-    bgColor: string;
-    shadowColor: string;
-    gradientFrom: string;
-    gradientTo: string;
-    progressBg: string;
+interface AchievementsPanelProps {
+    winCount: number;
+    achievements: Achievement[];
 }
-
-const achievements: Achievement[] = [
-    { name: 'Bronze', wins: 5, icon: Medal, color: 'text-[#cd7f32]', glowColor: '#cd7f32', bgColor: 'bg-[#cd7f32]/10', shadowColor: 'shadow-[#cd7f32]/20', gradientFrom: 'from-[#4a2f14]', gradientTo: 'to-[#13161c]', progressBg: '[&>div]:bg-[#cd7f32]' },
-    { name: 'Prata', wins: 10, icon: Award, color: 'text-[#c0c0c0]', glowColor: '#c0c0c0', bgColor: 'bg-[#c0c0c0]/10', shadowColor: 'shadow-[#c0c0c0]/20', gradientFrom: 'from-[#4c4c4c]', gradientTo: 'to-[#13161c]', progressBg: '[&>div]:bg-[#c0c0c0]' },
-    { name: 'Ouro', wins: 20, icon: Trophy, color: 'text-[#ffd700]', glowColor: '#ffd700', bgColor: 'bg-[#ffd700]/10', shadowColor: 'shadow-[#ffd700]/20', gradientFrom: 'from-[#5e4d00]', gradientTo: 'to-[#13161c]', progressBg: '[&>div]:bg-[#ffd700]' },
-];
 
 const CurrentRankDisplay = ({ rank, winCount }: { rank: Achievement | undefined; winCount: number }) => {
     const displayRank = rank || {
@@ -94,7 +81,7 @@ const AchievementCard = ({ ach, isUnlocked }: { ach: Achievement; isUnlocked: bo
 );
 
 
-export function AchievementsPanel({ winCount }: AchievementsPanelProps) {
+export function AchievementsPanel({ winCount, achievements }: AchievementsPanelProps) {
     const getNextAchievement = () => {
         return achievements.find(a => winCount < a.wins);
     };

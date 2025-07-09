@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { 
     Menu, Plus, Briefcase, History, Megaphone, PlayCircle, MessageCircle, MoreHorizontal, 
     Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, LayoutGrid, Bitcoin, X,
-    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy
+    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy, Award, Medal
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
@@ -81,6 +81,26 @@ interface TradeDetails {
     profitState: 'profit' | 'loss' | null;
 }
 
+export interface Achievement {
+    name: string;
+    wins: number;
+    icon: React.ElementType;
+    color: string;
+    glowColor: string;
+    bgColor: string;
+    shadowColor: string;
+    gradientFrom: string;
+    gradientTo: string;
+    progressBg: string;
+}
+
+const achievements: Achievement[] = [
+    { name: 'Bronze', wins: 5, icon: Medal, color: 'text-[#cd7f32]', glowColor: '#cd7f32', bgColor: 'bg-[#cd7f32]/10', shadowColor: 'shadow-[#cd7f32]/20', gradientFrom: 'from-[#4a2f14]', gradientTo: 'to-[#13161c]', progressBg: '[&>div]:bg-[#cd7f32]' },
+    { name: 'Prata', wins: 10, icon: Award, color: 'text-[#c0c0c0]', glowColor: '#c0c0c0', bgColor: 'bg-[#c0c0c0]/10', shadowColor: 'shadow-[#c0c0c0]/20', gradientFrom: 'from-[#4c4c4c]', gradientTo: 'to-[#13161c]', progressBg: '[&>div]:bg-[#c0c0c0]' },
+    { name: 'Ouro', wins: 20, icon: Trophy, color: 'text-[#ffd700]', glowColor: '#ffd700', bgColor: 'bg-[#ffd700]/10', shadowColor: 'shadow-[#ffd700]/20', gradientFrom: 'from-[#5e4d00]', gradientTo: 'to-[#13161c]', progressBg: '[&>div]:bg-[#ffd700]' },
+];
+
+
 export default function TradeSim() {
   const [balance, setBalance] = useState(1000);
   const [activePairId, setActivePairId] = useState('EUR/USD');
@@ -98,6 +118,7 @@ export default function TradeSim() {
   const notificationSoundRef = useRef<HTMLAudioElement | null>(null);
   const clickSoundRef = useRef<HTMLAudioElement | null>(null);
   const modoProSoundRef = useRef<HTMLAudioElement | null>(null);
+  const rankUpSoundRef = useRef<HTMLAudioElement | null>(null);
 
   const [activeTrades, setActiveTrades] = useState<TradeDetails[]>([]);
   const [tradesToResolve, setTradesToResolve] = useState<TradeDetails[]>([]);
@@ -105,6 +126,8 @@ export default function TradeSim() {
   const [zoomLevel, setZoomLevel] = useState(200);
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryItem[]>([]);
   const [winCount, setWinCount] = useState(0);
+  const [rankUpInfo, setRankUpInfo] = useState<{ rank: Achievement; nextRank?: Achievement } | null>(null);
+  const prevWinCountRef = useRef<number>(winCount);
 
   const [predictions, setPredictions] = useState<PredictionMessage[]>([]);
   const [isChatMinimized, setIsChatMinimized] = useState(true);
@@ -127,13 +150,14 @@ export default function TradeSim() {
 
   // Sound setup
   useEffect(() => {
-    gainSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/g8kuyoj92dse42x809px8/money-soundfx.mp3?rlkey=yrvyfsscwyuvvwkhz1db8pnsc&st=fwvi92jq&dl=1');
-    lossSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/422avpg6mmh10gxzlgmtq/app-error.mp3?rlkey=eecjn7ft9w71oerkjvbpjnkl0&st=hngh4cba&dl=1');
-    notificationSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/z8b9x0ivjzy50lixhhien/mensagens-notificacao.mp3?rlkey=tjock8lev0b7h72agsoo4a9z3&st=7i0n01uk&dl=1');
-    clickSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/n55rapwidqiyan35ea5h3/button_09-190435.mp3?rlkey=ok05nvpvpvljsqzxa1iewcqp6&st=p8kr3pnx&dl=1');
-    modoProSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/dt5877jdhzsb26v6nzffh/Efeito-Sonoro-RISADA-MALIGNA.mp3?rlkey=ceai7boxregpmf38eo4lkc58t&st=syuyrxhj&dl=1');
+    gainSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/g8kuyoj92dse42x809px8/money-soundfx.mp3?rlkey=yrvyfsscwyuvvwkhz1db8pnsc&dl=1');
+    lossSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/422avpg6mmh10gxzlgmtq/app-error.mp3?rlkey=eecjn7ft9w71oerkjvbpjnkl0&dl=1');
+    notificationSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/z8b9x0ivjzy50lixhhien/mensagens-notificacao.mp3?rlkey=tjock8lev0b7h72agsoo4a9z3&dl=1');
+    clickSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/n55rapwidqiyan35ea5h3/button_09-190435.mp3?rlkey=ok05nvpvpvljsqzxa1iewcqp6&dl=1');
+    modoProSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/dt5877jdhzsb26v6nzffh/Efeito-Sonoro-RISADA-MALIGNA.mp3?rlkey=ceai7boxregpmf38eo4lkc58t&dl=1');
+    rankUpSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/ve20i62ep6lcplte69iqp/brass-fanfare-with-timpani-and-winchimes-reverberated-146260.mp3?rlkey=a68w7y4o5tdpr0ihw1uwfvlb0&dl=1');
 
-    const heartbeatSound = new Audio('https://www.dropbox.com/scl/fi/o6ot3qm4qs33tnxt0l89b/Heart-Rate-Monitor.mov.mp3?rlkey=49vwh340mvpogypuv8lx3lsqn&st=lh31tk6d&dl=1');
+    const heartbeatSound = new Audio('https://www.dropbox.com/scl/fi/o6ot3qm4qs33tnxt0l89b/Heart-Rate-Monitor.mov.mp3?rlkey=49vwh340mvpogypuv8lx3lsqn&dl=1');
     heartbeatSound.loop = true;
     heartbeatSoundRef.current = heartbeatSound;
   }, []);
@@ -346,6 +370,29 @@ export default function TradeSim() {
 
     return () => clearInterval(tradeTimer);
   }, [isSoundEnabled]);
+  
+  // Rank-up detection effect
+  useEffect(() => {
+    const previousWins = prevWinCountRef.current;
+    const currentWins = winCount;
+
+    if (currentWins > previousWins) {
+        const justAchievedRank = achievements.find(ach => currentWins >= ach.wins && previousWins < ach.wins);
+
+        if (justAchievedRank) {
+            const nextRankIndex = achievements.findIndex(a => a.name === justAchievedRank.name) + 1;
+            const nextRank = achievements[nextRankIndex];
+            
+            setRankUpInfo({ rank: justAchievedRank, nextRank });
+            if (isSoundEnabled) {
+                rankUpSoundRef.current?.play().catch(console.error);
+            }
+        }
+    }
+    
+    prevWinCountRef.current = currentWins;
+  }, [winCount, isSoundEnabled]);
+
 
   // Stop sounds if they are disabled
   useEffect(() => {
@@ -593,6 +640,28 @@ export default function TradeSim() {
 
   return (
     <div className="flex md:flex-row flex-col h-screen w-full bg-background text-sm text-foreground font-body">
+      <AlertDialog open={!!rankUpInfo} onOpenChange={(open) => { if (!open) setRankUpInfo(null); }}>
+          <AlertDialogContent className="bg-gradient-to-br from-[#2a2a3a] to-[#1a1a2a] border-primary/50 text-white">
+              <AlertDialogHeader>
+                  <div className="flex justify-center mb-4">
+                      {rankUpInfo && <rankUpInfo.rank.icon className={cn("h-24 w-24", rankUpInfo.rank.color)} style={{ filter: `drop-shadow(0 0 20px ${rankUpInfo.rank.glowColor})` }} />}
+                  </div>
+                  <AlertDialogTitle className="text-center text-3xl font-bold">Parabéns!</AlertDialogTitle>
+                  <AlertDialogDescription className="text-center text-lg text-white/80 mt-2">
+                      Você foi promovido para o rank de <strong className={cn("font-bold", rankUpInfo?.rank.color)}>{rankUpInfo?.rank.name}</strong>!
+                      <br />
+                      {rankUpInfo?.nextRank 
+                          ? `Faltam ${rankUpInfo.nextRank.wins - winCount} vitórias para o próximo nível: ${rankUpInfo.nextRank.name}.`
+                          : 'Você alcançou o rank mais alto! Continue assim!'
+                      }
+                  </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="mt-4">
+                  <AlertDialogAction className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" onClick={() => setRankUpInfo(null)}>Continuar Dominando</AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
+      
       {/* Left Sidebar */}
       <aside className="w-16 hidden md:flex flex-none flex-col items-center space-y-2 bg-[#1e222d] py-4 border-r border-border">
         <Button variant="ghost" size="icon"><Menu className="h-5 w-5" /></Button>
@@ -619,7 +688,7 @@ export default function TradeSim() {
         <nav className="flex flex-col space-y-2 items-center">
           <Button variant="ghost" size="icon"><Briefcase className="h-5 w-5" /></Button>
           <TradeHistoryPanel history={tradeHistory} allPairs={allCurrencyPairs} />
-          <AchievementsPanel winCount={winCount} />
+          <AchievementsPanel winCount={winCount} achievements={achievements} />
           <Button variant="ghost" size="icon"><Megaphone className="h-5 w-5" /></Button>
           <Button variant="ghost" size="icon"><PlayCircle className="h-5 w-5" /></Button>
           <Button variant="ghost" size="icon"><MessageCircle className="h-5 w-5" /></Button>

@@ -130,10 +130,11 @@ export default function TradeSim() {
   const [winCount, setWinCount] = useState(0);
   const [rankUpInfo, setRankUpInfo] = useState<{ rank: Achievement; nextRank?: Achievement } | null>(null);
   const prevWinCountRef = useRef<number>(winCount);
-  const [milestonePopup, setMilestonePopup] = useState<{ isOpen: boolean; imageUrl: string | null }>({
-    isOpen: false,
-    imageUrl: null,
-  });
+
+  // State for milestone popups
+  const [showFirstMilestone, setShowFirstMilestone] = useState(false);
+  const [showSecondMilestone, setShowSecondMilestone] = useState(false);
+  const [milestonesShown, setMilestonesShown] = useState(false);
 
   const [predictions, setPredictions] = useState<PredictionMessage[]>([]);
   const [isChatMinimized, setIsChatMinimized] = useState(true);
@@ -387,19 +388,12 @@ export default function TradeSim() {
     return () => clearInterval(tradeTimer);
   }, [isSoundEnabled]);
   
-  // Rank-up and Milestone detection effect
+  // Rank-up detection effect
   useEffect(() => {
     const previousWins = prevWinCountRef.current;
     const currentWins = winCount;
 
     if (currentWins > previousWins) {
-        // Milestone popups
-        if (currentWins === 1) {
-            setMilestonePopup({ isOpen: true, imageUrl: 'https://i.imgur.com/vwIOmX4.png' });
-        } else if (currentWins === 6) {
-            setMilestonePopup({ isOpen: true, imageUrl: 'https://i.imgur.com/vfKECma.png' });
-        }
-
         // Rank-up logic
         const justAchievedRank = achievements.find(ach => currentWins >= ach.wins && previousWins < ach.wins);
         if (justAchievedRank) {
@@ -415,6 +409,15 @@ export default function TradeSim() {
     
     prevWinCountRef.current = currentWins;
   }, [winCount, isSoundEnabled]);
+
+  // Milestone popups after first trade
+  useEffect(() => {
+    // Check if there is at least one trade and milestones haven't been shown
+    if (tradeHistory.length > 0 && !milestonesShown) {
+      setShowFirstMilestone(true);
+      setMilestonesShown(true); // Ensure this runs only once
+    }
+  }, [tradeHistory, milestonesShown]);
 
 
   // Stop sounds if they are disabled
@@ -728,29 +731,57 @@ export default function TradeSim() {
     <div className="flex md:flex-row flex-col h-screen w-full bg-background text-sm text-foreground font-body">
       {isTutorialOpen && <TutorialGuide steps={tutorialSteps} onComplete={handleTutorialComplete} isOpen={isTutorialOpen} />}
       
-      <AlertDialog open={milestonePopup.isOpen} onOpenChange={(open) => { if (!open) setMilestonePopup({ isOpen: false, imageUrl: null }); }}>
+      <AlertDialog open={showFirstMilestone} onOpenChange={(open) => {
+        if (!open) {
+          setShowFirstMilestone(false);
+          // Open the second popup after a short delay for smooth transition
+          setTimeout(() => setShowSecondMilestone(true), 300);
+        } else {
+          setShowFirstMilestone(true);
+        }
+      }}>
           <AlertDialogContent className="bg-transparent border-0 p-0 w-auto shadow-none focus-visible:ring-0 focus-visible:ring-offset-0">
-              {milestonePopup.imageUrl && (
-                  <div className="relative">
-                      <Image 
-                          src={milestonePopup.imageUrl}
-                          alt="Parabéns pela conquista!"
-                          width={600}
-                          height={600}
-                          className="rounded-lg object-contain"
-                      />
-                       <AlertDialogCancel asChild>
-                          <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="absolute top-2 right-2 bg-black/50 hover:bg-black/80 text-white rounded-full h-8 w-8"
-                              onClick={() => setMilestonePopup({ isOpen: false, imageUrl: null })}
-                          >
-                              <X className="h-5 w-5" />
-                          </Button>
-                      </AlertDialogCancel>
-                  </div>
-              )}
+              <div className="relative">
+                  <Image 
+                      src="https://i.imgur.com/vwIOmX4.png"
+                      alt="Parabéns!"
+                      width={600}
+                      height={600}
+                      className="rounded-lg object-contain"
+                  />
+                   <AlertDialogCancel asChild>
+                      <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="absolute top-2 right-2 bg-black/50 hover:bg-black/80 text-white rounded-full h-8 w-8"
+                      >
+                          <X className="h-5 w-5" />
+                      </Button>
+                  </AlertDialogCancel>
+              </div>
+          </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showSecondMilestone} onOpenChange={setShowSecondMilestone}>
+          <AlertDialogContent className="bg-transparent border-0 p-0 w-auto shadow-none focus-visible:ring-0 focus-visible:ring-offset-0">
+              <div className="relative">
+                  <Image 
+                      src="https://i.imgur.com/vfKECma.png"
+                      alt="Parabéns pela conquista!"
+                      width={600}
+                      height={600}
+                      className="rounded-lg object-contain"
+                  />
+                   <AlertDialogCancel asChild>
+                      <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="absolute top-2 right-2 bg-black/50 hover:bg-black/80 text-white rounded-full h-8 w-8"
+                      >
+                          <X className="h-5 w-5" />
+                      </Button>
+                  </AlertDialogCancel>
+              </div>
           </AlertDialogContent>
       </AlertDialog>
 
@@ -799,7 +830,6 @@ export default function TradeSim() {
         </Dialog>
         <Separator className="!bg-border/50 my-2" />
         <nav className="flex flex-col space-y-2 items-center">
-          <Button variant="ghost" size="icon"><Briefcase className="h-5 w-5" /></Button>
           <div ref={historyButtonRef} className="inline-block">
             <TradeHistoryPanel history={tradeHistory} allPairs={allCurrencyPairs} />
           </div>

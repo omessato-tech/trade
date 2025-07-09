@@ -64,22 +64,32 @@ const allCurrencyPairs: CurrencyPair[] = [
   { id: 'USD/CAD', name: 'USD/CAD', category: 'Forex', type: 'Forex', basePrice: 1.3660, precision: 5, flag1: '🇺🇸', flag2: '🇨🇦' },
   { id: 'USD/JPY', name: 'USD/JPY', category: 'Forex', type: 'Forex', basePrice: 157.40, precision: 3, flag1: '🇺🇸', flag2: '🇯🇵' },
   // Crypto
-  { id: 'Bitcoin', name: 'Bitcoin', category: 'Crypto', type: 'Crypto', basePrice: 65000, precision: 2, icon: Bitcoin },
-  { id: 'Ethereum', name: 'Ethereum', category: 'Crypto', type: 'Crypto', basePrice: 3500, precision: 2, icon: Gem },
-  { id: 'Ripple', name: 'Ripple', category: 'Crypto', type: 'Crypto', basePrice: 0.49, precision: 4, icon: CircleDollarSign },
-  { id: 'Litecoin', name: 'Litecoin', category: 'Crypto', type: 'Crypto', basePrice: 74, precision: 2, icon: Lightbulb },
-  { id: 'Solana', name: 'Solana', category: 'Crypto', type: 'Crypto', basePrice: 145, precision: 2, icon: Waves },
+  { id: 'BTC-USD', name: 'Bitcoin', category: 'Crypto', type: 'Crypto', basePrice: 65000, precision: 2, icon: Bitcoin },
+  { id: 'ETH-USD', name: 'Ethereum', category: 'Crypto', type: 'Crypto', basePrice: 3500, precision: 2, icon: Gem },
+  { id: 'XRP-USD', name: 'Ripple', category: 'Crypto', type: 'Crypto', basePrice: 0.49, precision: 4, icon: CircleDollarSign },
+  { id: 'LTC-USD', name: 'Litecoin', category: 'Crypto', type: 'Crypto', basePrice: 74, precision: 2, icon: Lightbulb },
+  { id: 'SOL-USD', name: 'Solana', category: 'Crypto', type: 'Crypto', basePrice: 145, precision: 2, icon: Waves },
 ];
+
+interface TradeDetails {
+    id: string;
+    pairId: string;
+    type: 'buy' | 'sell';
+    entryPrice: number;
+    amount: number;
+    countdown: number;
+    profitState: 'profit' | 'loss' | null;
+}
 
 export default function TradeSim() {
   const [balance, setBalance] = useState(1000);
   const [activePairId, setActivePairId] = useState('EUR/USD');
-  const [openPairs, setOpenPairs] = useState(['EUR/USD', 'EUR/JPY', 'Bitcoin', 'CHF/JPY']);
+  const [openPairs, setOpenPairs] = useState(['EUR/USD', 'EUR/JPY', 'BTC-USD', 'CHF/JPY']);
   const [chartData, setChartData] = useState<{ [key: string]: any[] }>({});
   const [activeTimeframe, setActiveTimeframe] = useState('5s');
   const [tradeAmount, setTradeAmount] = useState(4);
   const [leverage, setLeverage] = useState(300);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [lastTradeResult, setLastTradeResult] = useState<{ amount: number; type: 'gain' | 'loss' } | null>(null);
   const gainSoundRef = useRef<HTMLAudioElement | null>(null);
   const lossSoundRef = useRef<HTMLAudioElement | null>(null);
@@ -88,16 +98,13 @@ export default function TradeSim() {
   const clickSoundRef = useRef<HTMLAudioElement | null>(null);
   const modoProSoundRef = useRef<HTMLAudioElement | null>(null);
 
-  const [tradeDetails, setTradeDetails] = useState<{ pairId: string, type: 'buy' | 'sell'; entryPrice: number; amount: number; } | null>(null);
-  const [countdown, setCountdown] = useState<number | null>(null);
-  const [profitState, setProfitState] = useState<'profit' | 'loss' | null>(null);
+  const [activeTrades, setActiveTrades] = useState<TradeDetails[]>([]);
   const [zoomLevel, setZoomLevel] = useState(200);
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryItem[]>([]);
   const [winCount, setWinCount] = useState(0);
 
   const [predictions, setPredictions] = useState<PredictionMessage[]>([]);
   const [isChatMinimized, setIsChatMinimized] = useState(true);
-  const [predictionDirection, setPredictionDirection] = useState<'buy' | 'sell' | null>(null);
   const [isProMode, setIsProMode] = useState(false);
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
   
@@ -116,14 +123,15 @@ export default function TradeSim() {
   const chartAreaRef = useRef<HTMLElement>(null);
 
 
-  const resolveTrade = useCallback(() => {
-    if (!tradeDetails) return;
+  const resolveTrade = useCallback((tradeId: string) => {
+    const tradeToResolve = activeTrades.find(t => t.id === tradeId);
+    if (!tradeToResolve) return;
 
-    const currentChartData = chartDataRef.current?.[tradeDetails.pairId];
+    const currentChartData = chartDataRef.current?.[tradeToResolve.pairId];
     if (!currentChartData || currentChartData.length === 0) return;
 
     const finalPrice = currentChartData[currentChartData.length - 1].c;
-    const { type, entryPrice, amount } = tradeDetails;
+    const { type, entryPrice, amount } = tradeToResolve;
 
     let isWin = false;
     if (type === 'buy') {
@@ -142,12 +150,12 @@ export default function TradeSim() {
 
     const newHistoryItem: TradeHistoryItem = {
       id: `${new Date().getTime()}`,
-      pairId: tradeDetails.pairId,
+      pairId: tradeToResolve.pairId,
       timestamp: new Date(),
-      type: tradeDetails.type,
-      entryPrice: tradeDetails.entryPrice,
+      type: tradeToResolve.type,
+      entryPrice: tradeToResolve.entryPrice,
       closePrice: finalPrice,
-      amount: tradeDetails.amount,
+      amount: tradeToResolve.amount,
       resultAmount: resultAmount,
       isWin: isWin,
     };
@@ -170,10 +178,8 @@ export default function TradeSim() {
     }
 
     setBalance(prevBalance => prevBalance + resultAmount);
-    setTradeDetails(null);
-    setCountdown(null);
-    setPredictionDirection(null);
-  }, [tradeDetails, isSoundEnabled]);
+    setActiveTrades(prev => prev.filter(t => t.id !== tradeId));
+  }, [activeTrades, isSoundEnabled]);
 
 
   useEffect(() => {
@@ -189,15 +195,21 @@ export default function TradeSim() {
   }, []);
 
   const fetchInitialData = useCallback(async (pairId: string) => {
+    const pair = allCurrencyPairs.find(p => p.id === pairId);
+    if (!pair) return;
+
     try {
-      const response = await fetch(`/api/market-data?pair=${pairId.replace('/', '')}`);
+      const response = await fetch(`/api/market-data?pair=${pair.id}&category=${pair.category}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch market data');
+        throw new Error(`Failed to fetch market data (${response.status})`);
       }
       const data = await response.json();
-      setChartData(prev => ({ ...prev, [pairId]: data.slice(0, 200) }));
+      if (!data || data.error) {
+          throw new Error(data.error || 'Empty data returned from API');
+      }
+      setChartData(prev => ({ ...prev, [pairId]: data.slice(-500) })); // Keep last 500 candles
     } catch (error) {
-      console.error(error);
+      console.warn(`Could not fetch real data for ${pairId}, using fallback. Error:`, error);
       // Fallback to random data on error
       const timeframeMillis = timeframeDurations[activeTimeframe];
       let initialData: any[] = [];
@@ -218,22 +230,35 @@ export default function TradeSim() {
   }, [activeTimeframe]);
 
   useEffect(() => {
-    fetchInitialData(activePairId);
-  }, [activePairId, fetchInitialData]);
+    // Fetch data for all open pairs initially
+    openPairs.forEach(pairId => {
+      if (!chartData[pairId]) {
+        fetchInitialData(pairId);
+      }
+    });
+  }, [openPairs, fetchInitialData, chartData]);
 
 
   const updateData = useCallback(async () => {
+    const pair = allCurrencyPairs.find(p => p.id === activePairId);
+    if (!pair) return;
+
     try {
-        const response = await fetch(`/api/market-data?pair=${activePairId.replace('/', '')}&latest=true`);
+        const response = await fetch(`/api/market-data?pair=${pair.id}&category=${pair.category}&latest=true`);
         if (!response.ok) {
-            throw new Error('Failed to fetch latest price');
+            console.warn(`Failed to fetch latest price for ${pair.id}. Status: ${response.status}`);
+            return;
         }
         const latestCandle = await response.json();
+        if (!latestCandle || latestCandle.error) {
+            console.warn(`Empty or error data for latest price of ${pair.id}:`, latestCandle?.error);
+            return;
+        }
 
         setChartData(prevData => {
             const currentPairData = prevData[activePairId];
             if (!currentPairData || currentPairData.length === 0) {
-                return { ...prevData, [activePairId]: [latestCandle] };
+                return prevData;
             }
 
             const timeframeMillis = timeframeDurations[activeTimeframe];
@@ -249,85 +274,103 @@ export default function TradeSim() {
                 const updatedLastCandle = {
                     ...lastCandle,
                     c: latestCandle.c,
-                    h: Math.max(lastCandle.h, latestCandle.h),
-                    l: Math.min(lastCandle.l, latestCandle.l),
+                    h: Math.max(lastCandle.h, latestCandle.c),
+                    l: Math.min(lastCandle.l, latestCandle.c),
                 };
                 const newData = [...currentPairData.slice(0, -1), updatedLastCandle];
                 return { ...prevData, [activePairId]: newData };
             }
         });
     } catch (error) {
-        console.error("Failed to update data, using fallback", error);
+        console.warn(`Failed to update data for ${pair.id}. Error:`, error);
     }
   }, [activePairId, activeTimeframe]);
 
 
   // Update chart data on an interval
   useEffect(() => {
-    const interval = setInterval(updateData, 15000); // Update every 15 seconds for real data
+    const interval = setInterval(updateData, 5000); // Update every 5 seconds for more fluid chart
     return () => clearInterval(interval);
   }, [updateData]);
 
 
   // Update current time display
   useEffect(() => {
+    setCurrentTime(new Date());
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
   // Countdown timer logic for active trades
   useEffect(() => {
-    if (countdown === null) return;
-
-    if (countdown === 0) {
-      resolveTrade();
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setCountdown(prev => (prev !== null ? prev - 1 : null));
+    const timer = setInterval(() => {
+      let expiredTrades = false;
+      setActiveTrades(prevTrades => 
+        prevTrades.map(trade => {
+          if (trade.countdown > 0) {
+            return { ...trade, countdown: trade.countdown - 1 };
+          } else {
+            expiredTrades = true;
+            return trade;
+          }
+        })
+      );
+      if (expiredTrades) {
+          activeTrades.forEach(trade => {
+              if(trade.countdown <= 0) {
+                  resolveTrade(trade.id);
+              }
+          })
+      }
     }, 1000);
 
-    return () => clearTimeout(timer);
-  }, [countdown, resolveTrade]);
+    return () => clearInterval(timer);
+  }, [activeTrades, resolveTrade]);
   
   // Profit/Loss state checker
   useEffect(() => {
-    if (!tradeDetails || !chartData[tradeDetails.pairId] || chartData[tradeDetails.pairId].length === 0) {
-      setProfitState(null);
-      if (heartbeatSoundRef.current) {
-        heartbeatSoundRef.current.pause();
-        heartbeatSoundRef.current.currentTime = 0;
-      }
-      return;
+    if (activeTrades.length === 0 || !chartDataRef.current) {
+        if (heartbeatSoundRef.current) {
+          heartbeatSoundRef.current.pause();
+          heartbeatSoundRef.current.currentTime = 0;
+        }
+        return;
     }
     
-    const currentPairChartData = chartData[tradeDetails.pairId];
-    const currentPrice = currentPairChartData[currentPairChartData.length - 1].c;
-    const { type, entryPrice } = tradeDetails;
+    let anyLoss = false;
+    setActiveTrades(prevTrades => 
+        prevTrades.map(trade => {
+            const currentPairChartData = chartDataRef.current![trade.pairId];
+            if (!currentPairChartData || currentPairChartData.length === 0) {
+                return trade;
+            }
+            
+            const currentPrice = currentPairChartData[currentPairChartData.length - 1].c;
+            const { type, entryPrice } = trade;
 
-    let isProfit = false;
-    if (type === 'buy') {
-      isProfit = currentPrice > entryPrice;
-    } else { // sell
-      isProfit = currentPrice < entryPrice;
-    }
+            let isProfit = (type === 'buy') ? currentPrice > entryPrice : currentPrice < entryPrice;
+            const newProfitState = isProfit ? 'profit' : 'loss';
+            
+            if (newProfitState === 'loss') {
+                anyLoss = true;
+            }
+
+            return { ...trade, profitState: newProfitState };
+        })
+    );
     
-    const newProfitState = isProfit ? 'profit' : 'loss';
-    setProfitState(newProfitState);
-
-    if (newProfitState === 'loss') {
+    if (anyLoss) {
         if (isSoundEnabled) {
           heartbeatSoundRef.current?.play().catch(error => console.error("Heartbeat audio play failed", error));
         }
-    } else { // profit
+    } else {
         if (heartbeatSoundRef.current) {
             heartbeatSoundRef.current.pause();
             heartbeatSoundRef.current.currentTime = 0;
         }
     }
 
-  }, [chartData, tradeDetails, isSoundEnabled]);
+  }, [chartData, activeTrades, isSoundEnabled]);
 
   // Stop sounds if they are disabled
   useEffect(() => {
@@ -341,7 +384,7 @@ export default function TradeSim() {
   useEffect(() => {
     const predictionInterval = setInterval(() => {
       const hasActivePrediction = predictions.some(p => p.status === 'active');
-      if (!tradeDetails && !hasActivePrediction) {
+      if (activeTrades.length === 0 && !hasActivePrediction) {
         const predictionType = Math.random() > 0.5 ? 'buy' : 'sell';
         
         const predictionPercentage = isProMode
@@ -369,7 +412,7 @@ export default function TradeSim() {
     }, 30000); // 30 seconds
 
     return () => clearInterval(predictionInterval);
-  }, [balance, tradeDetails, predictions, isProMode, isSoundEnabled, activePair.name]);
+  }, [balance, activeTrades, predictions, isProMode, isSoundEnabled, activePair.name]);
 
   // Prediction Countdown Logic
   useEffect(() => {
@@ -463,7 +506,7 @@ export default function TradeSim() {
   
   const handleTrade = (type: 'buy' | 'sell', amount: number) => {
     const currentChart = chartData[activePairId];
-    if (tradeDetails || !currentChart || currentChart.length < 1) {
+    if (!currentChart || currentChart.length < 1) {
       return;
     }
     
@@ -476,22 +519,29 @@ export default function TradeSim() {
     }
     
     const entryPrice = currentChart[currentChart.length - 1].c;
-    setTradeDetails({ pairId: activePairId, type, entryPrice, amount });
-    setCountdown(30);
+    const newTrade: TradeDetails = {
+        id: `${new Date().getTime()}`,
+        pairId: activePairId,
+        type,
+        entryPrice,
+        amount,
+        countdown: 30,
+        profitState: null,
+    };
+
+    setActiveTrades(prev => [...prev, newTrade]);
   };
 
   const handleFollowPrediction = (predictionId: string) => {
     const predictionToFollow = predictions.find(p => p.id === predictionId);
-    if (!predictionToFollow || tradeDetails || predictionToFollow.status !== 'active') return;
+    if (!predictionToFollow || predictionToFollow.status !== 'active') return;
 
     if (predictionToFollow.pairName !== activePair.name) {
-      // Here you could add a toast notification to inform the user to switch pairs
       console.warn(`Prediction is for ${predictionToFollow.pairName}, but active pair is ${activePair.name}.`);
       return;
     }
     
     handleTrade(predictionToFollow.type, predictionToFollow.amount);
-    setPredictionDirection(predictionToFollow.type);
     setPredictions(prev => prev.map(p => p.id === predictionId ? { ...p, status: 'followed' } : p));
   };
   
@@ -518,16 +568,13 @@ export default function TradeSim() {
   };
 
   const handlePairChange = (pairId: string) => {
-    if (tradeDetails) {
-        // Maybe show a toast that you can't switch during a trade
-        return;
-    }
     setActivePairId(pairId);
   };
   
   const handleAddPair = (pairId: string) => {
     if (!openPairs.includes(pairId)) {
         setOpenPairs(prev => [...prev, pairId]);
+        fetchInitialData(pairId);
     }
     setActivePairId(pairId);
   };
@@ -548,13 +595,20 @@ export default function TradeSim() {
   const currentChart = chartData[activePairId] || [];
   const currentPrice = currentChart.length > 0 ? currentChart[currentChart.length - 1].c : null;
   
-  const defaultChatTop = typeof window !== 'undefined' ? window.innerHeight - 500 : 200;
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && !chatPosition) {
         const initialTop = window.innerHeight - 520;
         setChatPosition({ top: initialTop > 20 ? initialTop : 20, left: 16 });
     }
-  }, []);
+  }, [chatPosition]);
+
+
+  const activeTradesForCurrentPair = activeTrades.filter(t => t.pairId === activePairId);
+  const entryLinesForChart = activeTradesForCurrentPair.map(t => ({
+      price: t.entryPrice,
+      type: t.type,
+      state: t.profitState,
+  }));
 
   return (
     <div className="flex md:flex-row flex-col h-screen w-full bg-background text-sm text-foreground font-body">
@@ -606,6 +660,7 @@ export default function TradeSim() {
                 const pair = allCurrencyPairs.find(p => p.id === pairId);
                 if (!pair) return null;
                 const isActive = activePairId === pairId;
+                const activeTradeCount = activeTrades.filter(t => t.pairId === pairId).length;
                 return (
                     <div
                         key={pair.id}
@@ -615,6 +670,11 @@ export default function TradeSim() {
                             isActive ? "bg-background/50 border-b-2 border-primary" : "hover:bg-background/20"
                         )}
                     >
+                        {activeTradeCount > 0 && (
+                            <span className="absolute top-0 left-0 h-4 w-4 text-xs rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                                {activeTradeCount}
+                            </span>
+                        )}
                         {pair.icon ? <pair.icon className="h-5 w-5 text-orange-400" /> : (
                             <div className="flex items-center">
                                 <span className="text-xl">{pair.flag1}</span>
@@ -657,32 +717,32 @@ export default function TradeSim() {
         {/* Chart Area */}
         <main ref={chartAreaRef} className="flex-1 relative flex flex-col">
             <div className="absolute inset-0 bg-[url('https://imgur.com/jCWkgEv.png')] bg-cover bg-center bg-no-repeat brightness-50 z-0"></div>
-            {tradeDetails && tradeDetails.pairId === activePairId && countdown !== null && (
-                <div className="absolute top-2 left-2 md:top-4 md:left-4 z-20 flex flex-col md:flex-row items-start md:items-center gap-2 md:gap-8 bg-black/50 px-2 py-1 md:px-4 md:py-2 rounded-lg backdrop-blur-sm font-mono">
-                    <div className="text-left">
-                        <div className="text-destructive text-xl md:text-2xl font-bold flex items-center gap-2">
-                            <Timer className="h-5 w-5 md:h-6 md:w-6" />
-                            <span>{`00:${String(countdown).padStart(2, '0')}`}</span>
+            
+            {activeTradesForCurrentPair.length > 0 && (
+                <div className="absolute top-2 left-2 md:top-4 md:left-4 z-20 flex flex-col items-start gap-2 bg-black/50 p-2 rounded-lg backdrop-blur-sm font-mono max-h-48 overflow-y-auto">
+                   {activeTradesForCurrentPair.map(trade => (
+                        <div key={trade.id} className="flex items-center gap-4 text-xs w-full">
+                            <div className={cn("w-14 text-center px-2 py-1 rounded", trade.type === 'buy' ? 'bg-primary/80' : 'bg-destructive/80')}>
+                                {trade.type.toUpperCase()}
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-white font-bold">R$ {trade.amount.toFixed(2)}</p>
+                                <p className="text-muted-foreground">{trade.entryPrice.toFixed(activePair.precision)}</p>
+                            </div>
+                             <div className="flex-1 text-center">
+                                <p className={cn(
+                                    "font-bold",
+                                    trade.profitState === 'profit' ? 'text-primary' : 'text-destructive'
+                                )}>
+                                    {trade.profitState === 'profit' ? '+' : '-'}R$ {(trade.profitState === 'profit' ? trade.amount * 0.9 : trade.amount).toFixed(2)}
+                                </p>
+                            </div>
+                             <div className="w-16 text-right text-destructive font-bold flex items-center gap-1">
+                                <Timer className="h-4 w-4" />
+                                <span>{`00:${String(trade.countdown).padStart(2, '0')}`}</span>
+                            </div>
                         </div>
-                        <p className="text-xs text-destructive/90 font-semibold tracking-wider uppercase mt-1">Expiration Time</p>
-                    </div>
-
-                    <div className="text-left">
-                        <p className="text-white text-xl md:text-2xl font-bold">
-                            R$ {tradeDetails.amount.toFixed(2)}
-                        </p>
-                        <p className="text-xs text-muted-foreground font-semibold tracking-wider uppercase mt-1">Total Investment</p>
-                    </div>
-
-                    <div className="text-left">
-                        <p className={cn(
-                            "text-xl md:text-2xl font-bold",
-                            profitState === 'profit' ? 'text-primary' : 'text-destructive'
-                        )}>
-                            {profitState === 'profit' ? '+' : '-'}R$ {(profitState === 'profit' ? tradeDetails.amount * 0.9 : tradeDetails.amount).toFixed(2)}
-                        </p>
-                        <p className="text-xs text-muted-foreground font-semibold tracking-wider uppercase mt-1">Expected Profit</p>
-                    </div>
+                   ))}
                 </div>
             )}
             
@@ -807,8 +867,7 @@ export default function TradeSim() {
                 <TradeChart 
                     data={currentChart} 
                     visibleRange={zoomLevel} 
-                    entryLine={tradeDetails && tradeDetails.pairId === activePairId ? { price: tradeDetails.entryPrice, type: tradeDetails.type } : null} 
-                    profitState={profitState} 
+                    entryLines={entryLinesForChart} 
                     currentPrice={currentPrice} 
                 />
             ) : (
@@ -846,7 +905,7 @@ export default function TradeSim() {
                 ))}
             </div>
             <div className="text-xs text-muted-foreground w-36 text-right">
-                {currentTime.toLocaleString('pt-BR', { day: 'numeric', month: 'short', year:'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                {currentTime?.toLocaleString('pt-BR', { day: 'numeric', month: 'short', year:'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </div>
         </footer>
       </div>
@@ -881,7 +940,7 @@ export default function TradeSim() {
             </div>
 
             <div className="flex flex-1 md:flex-initial flex-row md:flex-col gap-3 md:mt-auto">
-                <Button size="lg" className="h-auto flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2 disabled:opacity-50" onClick={() => handleTrade('buy', tradeAmount)} disabled={!!tradeDetails}>
+                <Button size="lg" className="h-auto flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-2 disabled:opacity-50" onClick={() => handleTrade('buy', tradeAmount)}>
                     <div className="flex items-center justify-between w-full">
                         <ArrowUpRight className="h-6 w-6" />
                         <div className="flex flex-col items-end">
@@ -894,7 +953,7 @@ export default function TradeSim() {
                     <p className="text-muted-foreground">SPREAD</p>
                     <p className="text-white">92.2</p>
                 </div>
-                <Button size="lg" className="h-auto flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground py-2 disabled:opacity-50" onClick={() => handleTrade('sell', tradeAmount)} disabled={!!tradeDetails}>
+                <Button size="lg" className="h-auto flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground py-2 disabled:opacity-50" onClick={() => handleTrade('sell', tradeAmount)}>
                     <div className="flex items-center justify-between w-full">
                         <ArrowDownLeft className="h-6 w-6" />
                         <div className="flex flex-col items-end">

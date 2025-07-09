@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -10,11 +11,16 @@ import { enUS } from 'date-fns/locale';
 
 ChartJS.register(CategoryScale, LinearScale, Tooltip, Legend, TimeScale, CandlestickController, CandlestickElement, annotationPlugin);
 
-const TradeChart = ({ data, visibleRange, entryLine, profitState, currentPrice }: { 
+interface EntryLine {
+  price: number;
+  type: 'buy' | 'sell';
+  state: 'profit' | 'loss' | null;
+}
+
+const TradeChart = ({ data, visibleRange, entryLines, currentPrice }: { 
   data: any[], 
   visibleRange?: number, 
-  entryLine: { price: number, type: 'buy' | 'sell' } | null,
-  profitState: 'profit' | 'loss' | null,
+  entryLines: EntryLine[],
   currentPrice: number | null
 }) => {
 
@@ -33,24 +39,30 @@ const TradeChart = ({ data, visibleRange, entryLine, profitState, currentPrice }
   
   const chartAnnotations: any = {};
   
-  if (entryLine) {
-    chartAnnotations.entryLine = {
-      type: 'line' as const,
-      yMin: entryLine.price,
-      yMax: entryLine.price,
-      borderColor: '#FF8C00',
-      borderWidth: 2,
-      borderDash: [6, 6],
-      label: {
-        content: `Entrada: ${entryLine.price.toFixed(5)}`,
-        display: true,
-        position: 'start',
-        backgroundColor: 'rgba(0,0,0,0.6)',
-        font: {
-          family: 'Inter, sans-serif'
+  if (entryLines && entryLines.length > 0) {
+    entryLines.forEach((line, index) => {
+      let borderColor = '#FF8C00'; // Orange for neutral
+      if (line.state === 'profit') borderColor = 'hsl(var(--primary))';
+      if (line.state === 'loss') borderColor = 'hsl(var(--destructive))';
+
+      chartAnnotations[`entryLine${index}`] = {
+        type: 'line' as const,
+        yMin: line.price,
+        yMax: line.price,
+        borderColor: borderColor,
+        borderWidth: 2,
+        borderDash: [6, 6],
+        label: {
+          content: `Entrada: ${line.price.toFixed(5)}`,
+          display: true,
+          position: index % 2 === 0 ? 'start' : 'end',
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          font: {
+            family: 'Inter, sans-serif'
+          }
         }
-      }
-    };
+      };
+    });
   }
 
   if (currentPrice) {

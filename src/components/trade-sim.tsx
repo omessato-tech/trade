@@ -727,6 +727,12 @@ export default function TradeSim() {
         }
       }}>
           <AlertDialogContent className="bg-transparent border-0 p-0 w-auto shadow-none focus-visible:ring-0 focus-visible:ring-offset-0">
+              <AlertDialogHeader className="sr-only">
+                  <AlertDialogTitle>Primeira Operação Concluída</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      Parabéns por completar sua primeira operação.
+                  </AlertDialogDescription>
+              </AlertDialogHeader>
               <div className="relative">
                   <Image 
                       src="https://i.imgur.com/vwIOmX4.png"
@@ -750,6 +756,12 @@ export default function TradeSim() {
 
       <AlertDialog open={showSecondMilestone} onOpenChange={setShowSecondMilestone}>
           <AlertDialogContent className="bg-transparent border-0 p-0 w-auto shadow-none focus-visible:ring-0 focus-visible:ring-offset-0">
+              <AlertDialogHeader className="sr-only">
+                  <AlertDialogTitle>Continue Assim!</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      Você está no caminho certo para se tornar um mestre trader.
+                  </AlertDialogDescription>
+              </AlertDialogHeader>
               <div className="relative">
                   <Image 
                       src="https://i.imgur.com/vfKECma.png"
@@ -825,7 +837,6 @@ export default function TradeSim() {
           <Button variant="ghost" size="icon"><Megaphone className="h-5 w-5" /></Button>
           <Button variant="ghost" size="icon"><PlayCircle className="h-5 w-5" /></Button>
           <Button variant="ghost" size="icon"><MessageCircle className="h-5 w-5" /></Button>
-          <Button variant="ghost" size="icon"><MoreHorizontal className="h-5 w-5" /></Button>
           <Button variant="ghost" size="icon" onClick={() => setIsSoundEnabled(prev => !prev)}>
             {isSoundEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
           </Button>

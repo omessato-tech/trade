@@ -169,8 +169,8 @@ const TradeChart = React.forwardRef<ChartJS<'candlestick', any[], any>, TradeCha
       }
     },
     color: {
-      up: 'hsl(var(--primary))',
-      down: 'hsl(var(--destructive))',
+      up: '#049504',
+      down: '#f80101',
       unchanged: '#999',
     }
   };

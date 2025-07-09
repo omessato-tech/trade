@@ -16,7 +16,7 @@ import {
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { AssetSelector } from './asset-selector';
 import type { LucideIcon } from 'lucide-react';
 import { TradeHistoryPanel } from './trade-history-panel';
@@ -91,6 +91,7 @@ export default function TradeSim() {
   const [leverage, setLeverage] = useState(300);
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [lastTradeResult, setLastTradeResult] = useState<{ amount: number; type: 'gain' | 'loss' } | null>(null);
+  
   const gainSoundRef = useRef<HTMLAudioElement | null>(null);
   const lossSoundRef = useRef<HTMLAudioElement | null>(null);
   const heartbeatSoundRef = useRef<HTMLAudioElement | null>(null);
@@ -99,6 +100,8 @@ export default function TradeSim() {
   const modoProSoundRef = useRef<HTMLAudioElement | null>(null);
 
   const [activeTrades, setActiveTrades] = useState<TradeDetails[]>([]);
+  const [tradesToResolve, setTradesToResolve] = useState<TradeDetails[]>([]);
+  
   const [zoomLevel, setZoomLevel] = useState(200);
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryItem[]>([]);
   const [winCount, setWinCount] = useState(0);
@@ -122,72 +125,7 @@ export default function TradeSim() {
   const chatWrapperRef = useRef<HTMLDivElement>(null);
   const chartAreaRef = useRef<HTMLElement>(null);
 
-
-  const resolveTrade = useCallback((tradeId: string) => {
-    setActiveTrades(prevTrades => {
-        const tradeToResolve = prevTrades.find(t => t.id === tradeId);
-        if (!tradeToResolve) return prevTrades;
-
-        const currentChartData = chartDataRef.current?.[tradeToResolve.pairId];
-        if (!currentChartData || currentChartData.length === 0) {
-            // Can't resolve yet, so don't filter it out
-            return prevTrades;
-        };
-
-        const finalPrice = currentChartData[currentChartData.length - 1].c;
-        const { type, entryPrice, amount } = tradeToResolve;
-
-        let isWin = false;
-        if (type === 'buy') {
-          isWin = finalPrice > entryPrice;
-        } else { // sell
-          isWin = finalPrice < entryPrice;
-        }
-
-        if (isWin) {
-          setWinCount(prev => prev + 1);
-        }
-
-        const winAmount = amount * 0.9;
-        const lossAmount = -amount;
-        const resultAmount = isWin ? winAmount : lossAmount;
-
-        const newHistoryItem: TradeHistoryItem = {
-          id: `${new Date().getTime()}`,
-          pairId: tradeToResolve.pairId,
-          timestamp: new Date(),
-          type: tradeToResolve.type,
-          entryPrice: tradeToResolve.entryPrice,
-          closePrice: finalPrice,
-          amount: tradeToResolve.amount,
-          resultAmount: resultAmount,
-          isWin: isWin,
-        };
-        setTradeHistory(prev => [newHistoryItem, ...prev]);
-        
-        setLastTradeResult({
-            amount: Math.abs(resultAmount),
-            type: isWin ? 'gain' : 'loss'
-        });
-        setTimeout(() => {
-            setLastTradeResult(null);
-        }, 2000);
-
-        if (isSoundEnabled) {
-          if (isWin) {
-              gainSoundRef.current?.play().catch(error => console.error("Audio play failed", error));
-          } else {
-              lossSoundRef.current?.play().catch(error => console.error("Audio play failed", error));
-          }
-        }
-
-        setBalance(prevBalance => prevBalance + resultAmount);
-        
-        return prevTrades.filter(t => t.id !== tradeId);
-      })
-  }, [isSoundEnabled]);
-
-
+  // Sound setup
   useEffect(() => {
     gainSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/g8kuyoj92dse42x809px8/money-soundfx.mp3?rlkey=yrvyfsscwyuvvwkhz1db8pnsc&st=fwvi92jq&dl=1');
     lossSoundRef.current = new Audio('https://www.dropbox.com/scl/fi/422avpg6mmh10gxzlgmtq/app-error.mp3?rlkey=eecjn7ft9w71oerkjvbpjnkl0&st=hngh4cba&dl=1');
@@ -244,7 +182,6 @@ export default function TradeSim() {
     });
   }, [openPairs, fetchInitialData, chartData]);
 
-
   const updateData = useCallback(async () => {
     const pair = allCurrencyPairs.find(p => p.id === activePairId);
     if (!pair) return;
@@ -252,13 +189,11 @@ export default function TradeSim() {
     try {
         const response = await fetch(`/api/market-data?pair=${pair.id}&category=${pair.category}`);
         if (!response.ok) {
-            console.warn(`Failed to fetch latest data for ${pair.id}. Status: ${response.status}`);
-            return;
+           throw new Error(`Failed to fetch latest data for ${pair.id}. Status: ${response.status}`);
         }
         const data = await response.json();
         if (!data || data.error || !Array.isArray(data)) {
-            console.warn(`Empty or error data for latest price of ${pair.id}:`, data?.error);
-            return;
+            throw new Error(`Empty or error data for latest price of ${pair.id}: ${data?.error}`);
         }
 
         setChartData(prevData => ({
@@ -267,17 +202,35 @@ export default function TradeSim() {
         }));
 
     } catch (error) {
-        console.warn(`Failed to update data for ${pair.id}. Error:`, error);
+        console.warn(`Failed to update data for ${pair.id}, using fallback. Error:`, error);
+        // Fallback to generating a new random candle to keep the chart moving
+        setChartData(prevData => {
+            const existingData = prevData[activePairId] || [];
+            if (existingData.length === 0) return prevData;
+
+            const lastCandle = existingData[existingData.length - 1];
+            const newTime = lastCandle.x + 5000; // New candle every 5 seconds on fallback
+            const open = lastCandle.c;
+            const close = open + (Math.random() - 0.5) * (open * 0.0005);
+            const high = Math.max(open, close) + Math.random() * (open * 0.0005 * 0.5);
+            const low = Math.min(open, close) - Math.random() * (open * 0.0005 * 0.5);
+            const newCandle = { x: newTime, o: open, h: high, l: low, c: close };
+
+            const newData = [...existingData, newCandle];
+            
+            return {
+                ...prevData,
+                [activePairId]: newData.slice(-500)
+            };
+        });
     }
   }, [activePairId]);
 
-
   // Update chart data on an interval
   useEffect(() => {
-    const interval = setInterval(updateData, 5000); // Update every 5 seconds for more fluid chart
+    const interval = setInterval(updateData, 5000); // Update every 5 seconds
     return () => clearInterval(interval);
   }, [updateData]);
-
 
   // Update current time display
   useEffect(() => {
@@ -286,67 +239,113 @@ export default function TradeSim() {
     return () => clearInterval(timer);
   }, []);
 
-  // Combined effect for trade countdown, profit/loss checking, and resolving trades
+  // Effect to process trades that have finished their countdown
+  useEffect(() => {
+      if (tradesToResolve.length === 0) return;
+
+      tradesToResolve.forEach(trade => {
+          const currentChartData = chartDataRef.current?.[trade.pairId];
+          if (!currentChartData || currentChartData.length === 0) {
+              console.error("Cannot resolve trade, chart data not available for", trade.pairId);
+              return; // Could re-queue this trade, but for now we skip.
+          }
+
+          const finalPrice = currentChartData[currentChartData.length - 1].c;
+          const { type, entryPrice, amount } = trade;
+          const isWin = (type === 'buy') ? finalPrice > entryPrice : finalPrice < entryPrice;
+
+          if (isWin) {
+              setWinCount(prev => prev + 1);
+          }
+
+          const winAmount = amount * 0.9;
+          const lossAmount = -amount;
+          const resultAmount = isWin ? winAmount : lossAmount;
+
+          const newHistoryItem: TradeHistoryItem = {
+              id: `${new Date().getTime()}-${Math.random()}`,
+              pairId: trade.pairId,
+              timestamp: new Date(),
+              type: trade.type,
+              entryPrice: trade.entryPrice,
+              closePrice: finalPrice,
+              amount: trade.amount,
+              resultAmount: resultAmount,
+              isWin: isWin,
+          };
+          setTradeHistory(prev => [newHistoryItem, ...prev]);
+
+          setLastTradeResult({
+              amount: Math.abs(resultAmount),
+              type: isWin ? 'gain' : 'loss'
+          });
+          setTimeout(() => setLastTradeResult(null), 2000);
+
+          if (isSoundEnabled) {
+              const sound = isWin ? gainSoundRef.current : lossSoundRef.current;
+              sound?.play().catch(console.error);
+          }
+
+          setBalance(prevBalance => prevBalance + resultAmount);
+      });
+
+      setTradesToResolve([]); // Clear the queue after processing
+  }, [tradesToResolve, isSoundEnabled]);
+
+  // Effect for trade countdowns and live status updates
   useEffect(() => {
     const tradeTimer = setInterval(() => {
-        const tradesToResolve: string[] = [];
-        
+        let needsHeartbeat = false;
+
         setActiveTrades(prevTrades => {
-            if (prevTrades.length === 0) {
-                if (heartbeatSoundRef.current) {
-                    heartbeatSoundRef.current.pause();
-                    heartbeatSoundRef.current.currentTime = 0;
+            const stillActive: TradeDetails[] = [];
+            const resolvedNow: TradeDetails[] = [];
+
+            prevTrades.forEach(trade => {
+                if (trade.countdown <= 1) {
+                    resolvedNow.push(trade);
+                } else {
+                    const currentPairChartData = chartDataRef.current?.[trade.pairId];
+                    let newProfitState = trade.profitState;
+
+                    if (currentPairChartData && currentPairChartData.length > 0) {
+                        const currentPrice = currentPairChartData[currentPairChartData.length - 1].c;
+                        newProfitState = ((trade.type === 'buy' && currentPrice > trade.entryPrice) || (trade.type === 'sell' && currentPrice < trade.entryPrice))
+                            ? 'profit' : 'loss';
+                    }
+
+                    if (newProfitState === 'loss') {
+                        needsHeartbeat = true;
+                    }
+
+                    stillActive.push({
+                        ...trade,
+                        countdown: trade.countdown - 1,
+                        profitState: newProfitState,
+                    });
                 }
-                return [];
-            }
-            
-            let anyLoss = false;
-            
-            const updatedTrades = prevTrades.map(trade => {
-                const newCountdown = trade.countdown > 0 ? trade.countdown - 1 : 0;
-                
-                if (newCountdown === 0) {
-                    tradesToResolve.push(trade.id);
-                }
-                
-                const currentPairChartData = chartDataRef.current?.[trade.pairId];
-                let newProfitState = trade.profitState;
-                
-                if (currentPairChartData && currentPairChartData.length > 0) {
-                    const currentPrice = currentPairChartData[currentPairChartData.length - 1].c;
-                    const { type, entryPrice } = trade;
-                    const isProfit = (type === 'buy') ? currentPrice > entryPrice : currentPrice < entryPrice;
-                    newProfitState = isProfit ? 'profit' : 'loss';
-                }
-                
-                if (newProfitState === 'loss') {
-                    anyLoss = true;
-                }
-                
-                return { ...trade, countdown: newCountdown, profitState: newProfitState };
             });
+
+            if (resolvedNow.length > 0) {
+                setTradesToResolve(prev => [...prev, ...resolvedNow]);
+            }
             
-            if (anyLoss) {
-                if (isSoundEnabled) {
-                    heartbeatSoundRef.current?.play().catch(error => console.error("Heartbeat audio play failed", error));
-                }
-            } else {
-                if (heartbeatSoundRef.current) {
+            // Heartbeat sound logic
+            if (isSoundEnabled) {
+                if (needsHeartbeat && heartbeatSoundRef.current?.paused) {
+                    heartbeatSoundRef.current.play().catch(console.error);
+                } else if (!needsHeartbeat && !heartbeatSoundRef.current?.paused) {
                     heartbeatSoundRef.current.pause();
                     heartbeatSoundRef.current.currentTime = 0;
                 }
             }
             
-            return updatedTrades;
+            return stillActive;
         });
-        
-        if (tradesToResolve.length > 0) {
-            tradesToResolve.forEach(id => resolveTrade(id));
-        }
     }, 1000);
 
     return () => clearInterval(tradeTimer);
-  }, [isSoundEnabled, resolveTrade]);
+  }, [isSoundEnabled]);
 
   // Stop sounds if they are disabled
   useEffect(() => {
@@ -576,8 +575,11 @@ export default function TradeSim() {
   
   useEffect(() => {
     if (typeof window !== 'undefined' && !chatPosition) {
-        const initialTop = window.innerHeight - 520;
-        setChatPosition({ top: initialTop > 20 ? initialTop : 20, left: 16 });
+        const chartArea = chartAreaRef.current;
+        if (chartArea) {
+            const initialTop = chartArea.clientHeight - 520;
+            setChatPosition({ top: initialTop > 20 ? initialTop : 20, left: 16 });
+        }
     }
   }, [chatPosition]);
 
@@ -695,7 +697,7 @@ export default function TradeSim() {
         
         {/* Chart Area */}
         <main ref={chartAreaRef} className="flex-1 relative flex flex-col">
-            <div className="absolute inset-0 bg-[url('https://imgur.com/jCWkgEv.png')] bg-cover bg-center bg-no-repeat brightness-50 z-0"></div>
+            <div className="absolute inset-0 bg-[url('https://i.imgur.com/3Dir0GB.png')] bg-cover bg-center bg-no-repeat brightness-50 z-0"></div>
             
             {activeTradesForCurrentPair.length > 0 && (
                 <div className="absolute top-2 left-2 md:top-4 md:left-4 z-20 flex flex-col items-start gap-2 bg-black/50 p-2 rounded-lg backdrop-blur-sm font-mono max-h-48 overflow-y-auto">

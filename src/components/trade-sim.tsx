@@ -11,11 +11,12 @@ import { cn } from '@/lib/utils';
 import { 
     Plus, Briefcase, History, Megaphone, PlayCircle, MessageCircle, MoreHorizontal, 
     Info, Bell, CandlestickChart, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, Bitcoin, X,
-    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy, Award, Medal
+    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy, Award, Medal, Settings
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { AssetSelector } from './asset-selector';
 import type { LucideIcon } from 'lucide-react';
@@ -48,7 +49,7 @@ export interface CurrencyPair {
 }
 
 interface PredictionMessage {
-  id: string;
+  id:string;
   type: 'buy' | 'sell';
   amount: number;
   percentage: number;
@@ -129,6 +130,7 @@ export default function TradeSim() {
   const [tradeHistory, setTradeHistory] = useState<TradeHistoryItem[]>([]);
   const [winCount, setWinCount] = useState(0);
   const [rankUpInfo, setRankUpInfo] = useState<{ rank: Achievement; nextRank?: Achievement } | null>(null);
+  const [isMobileSettingsOpen, setIsMobileSettingsOpen] = useState(false);
   const prevWinCountRef = useRef<number>(winCount);
 
   // State for milestone popups
@@ -288,7 +290,6 @@ export default function TradeSim() {
     const tradeTimer = setInterval(() => {
         const trades = activeTradesRef.current;
         if (!trades || trades.length === 0) {
-            // Ensure heartbeat stops if there are no trades
             if (isSoundEnabled && heartbeatSoundRef.current && !heartbeatSoundRef.current.paused) {
                 heartbeatSoundRef.current.pause();
                 heartbeatSoundRef.current.currentTime = 0;
@@ -297,84 +298,69 @@ export default function TradeSim() {
         }
 
         let needsHeartbeat = false;
+        let balanceChange = 0;
+        let newWins = 0;
+        const newHistoryItems: TradeHistoryItem[] = [];
+        const tradesToKeep: TradeDetails[] = [];
         
-        // Update countdowns and profit states first
-        const updatedTradesWithProfitState = trades.map(trade => {
-            if (trade.countdown <= 1) {
-                return trade; // This trade will be resolved below
-            }
+        const updatedTrades = trades.map(trade => {
+            const newCountdown = trade.countdown - 1;
 
-            const currentPairChartData = chartDataRef.current?.[trade.pairId];
-            let newProfitState = trade.profitState;
-
-            if (currentPairChartData && currentPairChartData.length > 0) {
-                const currentPrice = currentPairChartData[currentPairChartData.length - 1].c;
-                newProfitState = ((trade.type === 'buy' && currentPrice > trade.entryPrice) || (trade.type === 'sell' && currentPrice < trade.entryPrice))
-                    ? 'profit' : 'loss';
-            }
-            if (newProfitState === 'loss') {
-                needsHeartbeat = true;
-            }
-
-            return { ...trade, countdown: trade.countdown - 1, profitState: newProfitState };
-        });
-
-        const tradesToResolve = updatedTradesWithProfitState.filter(t => t.countdown <= 1);
-        const stillActiveTrades = updatedTradesWithProfitState.filter(t => t.countdown > 1);
-
-        // Resolve trades that have finished
-        if (tradesToResolve.length > 0) {
-            let totalBalanceChange = 0;
-            let winsToAdd = 0;
-            const newHistoryItems: TradeHistoryItem[] = [];
-
-            tradesToResolve.forEach(trade => {
-                const currentChartData = chartDataRef.current?.[trade.pairId];
-                if (!currentChartData || currentChartData.length === 0) {
-                    console.error("Cannot resolve trade, chart data not available for", trade.pairId);
-                    return;
+            if (newCountdown <= 0) {
+                const currentPairChartData = chartDataRef.current?.[trade.pairId];
+                if (currentPairChartData && currentPairChartData.length > 0) {
+                    const finalPrice = currentPairChartData[currentPairChartData.length - 1].c;
+                    const { type, entryPrice, amount } = trade;
+                    const isWin = (type === 'buy') ? finalPrice > entryPrice : finalPrice < entryPrice;
+                    const winAmount = amount * 0.9;
+                    const resultAmount = isWin ? winAmount : -amount;
+                    
+                    if (isWin) {
+                        newWins += 1;
+                        balanceChange += amount + winAmount;
+                        if (isSoundEnabled) gainSoundRef.current?.play().catch(console.error);
+                    } else {
+                        if (isSoundEnabled) lossSoundRef.current?.play().catch(console.error);
+                    }
+                    
+                    newHistoryItems.push({
+                        id: `${new Date().getTime()}-${Math.random()}`,
+                        pairId: trade.pairId,
+                        timestamp: new Date(),
+                        type: trade.type,
+                        entryPrice: trade.entryPrice,
+                        closePrice: finalPrice,
+                        amount: trade.amount,
+                        resultAmount: resultAmount,
+                        isWin: isWin,
+                    });
                 }
-        
-                const finalPrice = currentChartData[currentChartData.length - 1].c;
-                const { type, entryPrice, amount } = trade;
-                const isWin = (type === 'buy') ? finalPrice > entryPrice : finalPrice < entryPrice;
-        
-                const winAmount = amount * 0.9;
-                const resultAmount = isWin ? winAmount : -amount;
-        
-                if (isWin) {
-                    winsToAdd++;
-                    totalBalanceChange += amount + winAmount; // Return initial investment + profit
-                    if (isSoundEnabled) gainSoundRef.current?.play().catch(console.error);
-                } else {
-                    if (isSoundEnabled) lossSoundRef.current?.play().catch(console.error);
+                return null; // Mark for removal
+            } else {
+                const currentPairChartData = chartDataRef.current?.[trade.pairId];
+                let newProfitState = trade.profitState;
+                if (currentPairChartData && currentPairChartData.length > 0) {
+                    const currentPrice = currentPairChartData[currentPairChartData.length - 1].c;
+                    newProfitState = ((trade.type === 'buy' && currentPrice > trade.entryPrice) || (trade.type === 'sell' && currentPrice < trade.entryPrice))
+                        ? 'profit' : 'loss';
                 }
-        
-                const newHistoryItem: TradeHistoryItem = {
-                    id: `${new Date().getTime()}-${Math.random()}`,
-                    pairId: trade.pairId,
-                    timestamp: new Date(),
-                    type: trade.type,
-                    entryPrice: trade.entryPrice,
-                    closePrice: finalPrice,
-                    amount: trade.amount,
-                    resultAmount: resultAmount,
-                    isWin: isWin,
-                };
-                newHistoryItems.push(newHistoryItem);
-            });
-            
-            // Batch state updates
-            if (newHistoryItems.length > 0) {
-                setBalance(prev => prev + totalBalanceChange);
-                setWinCount(prev => prev + winsToAdd);
-                setTradeHistory(prev => [...newHistoryItems, ...prev]);
-                setVisibleResults(prev => [...newHistoryItems, ...prev].slice(0, 5));
+                if (newProfitState === 'loss') {
+                    needsHeartbeat = true;
+                }
+                tradesToKeep.push({ ...trade, countdown: newCountdown, profitState: newProfitState });
+                return { ...trade, countdown: newCountdown, profitState: newProfitState }; // keep it
             }
+        }).filter(Boolean) as TradeDetails[];
+        
+        setActiveTrades(updatedTrades);
+
+        if (balanceChange > 0 || newHistoryItems.length > 0) {
+            setBalance(prev => prev + balanceChange);
+            setWinCount(prev => prev + newWins);
+            setTradeHistory(prev => [...newHistoryItems, ...prev]);
+            setVisibleResults(prev => [...newHistoryItems, ...prev].slice(0, 5));
         }
 
-        // Update active trades list and heartbeat sound
-        setActiveTrades(stillActiveTrades);
         if (isSoundEnabled) {
             if (needsHeartbeat && heartbeatSoundRef.current?.paused) {
                 heartbeatSoundRef.current.play().catch(console.error);
@@ -915,6 +901,39 @@ export default function TradeSim() {
         <main ref={chartAreaRef} className="flex-1 relative flex flex-col">
             <div className="absolute inset-0 bg-[url('https://i.imgur.com/3Dir0GB.png')] bg-cover bg-center bg-no-repeat brightness-50 z-0"></div>
             
+            <div className="absolute top-2 right-2 z-20 md:hidden">
+                <Sheet open={isMobileSettingsOpen} onOpenChange={setIsMobileSettingsOpen}>
+                    <SheetTrigger asChild>
+                        <Button variant="ghost" size="icon" className="bg-black/50 hover:bg-black/70 text-white">
+                            <Settings className="h-5 w-5" />
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent side="bottom" className="bg-[#1e222d] border-t border-border/50 text-foreground rounded-t-lg">
+                        <SheetHeader className="text-center">
+                            <SheetTitle>Configurações do Gráfico</SheetTitle>
+                        </SheetHeader>
+                        <div className="pt-4 grid gap-4">
+                            <div className="flex items-center justify-around gap-2">
+                                <Button variant="ghost" className="flex-col h-auto gap-1"><Info className="h-5 w-5" /><span className="text-xs">Info</span></Button>
+                                <Button variant="ghost" className="flex-col h-auto gap-1"><Bell className="h-5 w-5" /><span className="text-xs">Alertas</span></Button>
+                                <Button variant="ghost" className="flex-col h-auto gap-1"><CandlestickChart className="h-5 w-5" /><span className="text-xs">Tipo</span></Button>
+                                <Button variant="ghost" className="flex-col h-auto gap-1" onClick={() => { handleZoom(); setIsMobileSettingsOpen(false); }}><ZoomIn className="h-5 w-5" /><span className="text-xs">Zoom</span></Button>
+                            </div>
+                            <Separator className="!bg-border/50" />
+                            <div>
+                                <p className="text-center text-sm text-muted-foreground mb-2">Tempo</p>
+                                <div className="flex items-center justify-center gap-2 text-xs">
+                                    {timeframes.map(tf => (
+                                        <Button key={tf} variant={activeTimeframe === tf ? 'secondary' : 'ghost'} size="sm" className="h-9 px-4 flex-1" onClick={() => { setActiveTimeframe(tf); setIsMobileSettingsOpen(false); }}>
+                                            {tf}
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </SheetContent>
+                </Sheet>
+            </div>
             {activeTradesForCurrentPair.length > 0 && (
                 <div className="absolute top-2 left-2 md:top-4 md:left-4 z-20 flex flex-col items-start gap-2 bg-black/50 p-2 rounded-lg backdrop-blur-sm font-mono max-h-48 overflow-y-auto">
                    {activeTradesForCurrentPair.map(trade => (
@@ -1135,7 +1154,7 @@ export default function TradeSim() {
       </div>
       
       {/* Right Sidebar / Mobile Bottom Bar */}
-      <aside className="w-full md:w-72 md:flex-none bg-[#1e222d] p-3 md:p-4 border-t md:border-t-0 md:border-l border-border flex flex-col gap-3 md:gap-4">
+      <aside className="w-full md:w-72 md:flex-none bg-[#1e222d] p-2 md:p-4 border-t md:border-t-0 md:border-l border-border flex flex-col gap-3 md:gap-4">
         <div className="hidden md:flex justify-between items-center">
             <div>
                 <p className="text-primary font-bold text-lg">R$ {balance.toFixed(2)}</p>
@@ -1151,7 +1170,7 @@ export default function TradeSim() {
             <div className="flex flex-1 md:flex-initial flex-col gap-3">
                 <div className="flex justify-between items-center">
                     <label htmlFor="invest-amount" className="text-muted-foreground">INVEST.</label>
-                    <Input id="invest-amount" type="number" value={tradeAmount} onChange={handleAmountChange} className="w-24 bg-input border-border text-right text-destructive font-bold" />
+                    <Input id="invest-amount" type="number" value={tradeAmount} onChange={handleAmountChange} className="w-20 md:w-24 bg-input border-border text-right text-destructive font-bold" />
                 </div>
                 <div className="hidden md:flex justify-between items-center">
                     <p className="text-muted-foreground">ALAV.</p>

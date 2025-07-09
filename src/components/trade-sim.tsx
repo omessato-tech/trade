@@ -139,6 +139,9 @@ export default function TradeSim() {
   const chartDataRef = useRef<{ [key: string]: any[] }>();
   chartDataRef.current = chartData;
 
+  const activeTradesRef = useRef<TradeDetails[]>();
+  activeTradesRef.current = activeTrades;
+
   const [isAssetSelectorOpen, setIsAssetSelectorOpen] = useState(false);
   
   const activePair = allCurrencyPairs.find(p => p.id === activePairId)!;
@@ -278,69 +281,70 @@ export default function TradeSim() {
   // Effect for trade countdowns, status updates, and resolution
   useEffect(() => {
     const tradeTimer = setInterval(() => {
-        const tradesToResolveNow: TradeDetails[] = [];
+        const trades = activeTradesRef.current;
+        if (!trades) return;
+
+        const tradesToResolve: TradeDetails[] = [];
+        const stillActive: TradeDetails[] = [];
         let needsHeartbeat = false;
 
-        setActiveTrades(prevTrades => {
-            const stillActive: TradeDetails[] = [];
-            
-            prevTrades.forEach(trade => {
-                if (trade.countdown <= 1) {
-                    tradesToResolveNow.push(trade);
-                } else {
-                    const currentPairChartData = chartDataRef.current?.[trade.pairId];
-                    let newProfitState = trade.profitState;
+        // Process current trades to see which are ending vs still active
+        trades.forEach(trade => {
+            if (trade.countdown <= 1) {
+                tradesToResolve.push(trade);
+            } else {
+                const currentPairChartData = chartDataRef.current?.[trade.pairId];
+                let newProfitState = trade.profitState;
 
-                    if (currentPairChartData && currentPairChartData.length > 0) {
-                        const currentPrice = currentPairChartData[currentPairChartData.length - 1].c;
-                        newProfitState = ((trade.type === 'buy' && currentPrice > trade.entryPrice) || (trade.type === 'sell' && currentPrice < trade.entryPrice))
-                            ? 'profit' : 'loss';
-                    }
-
-                    if (newProfitState === 'loss') {
-                        needsHeartbeat = true;
-                    }
-
-                    stillActive.push({
-                        ...trade,
-                        countdown: trade.countdown - 1,
-                        profitState: newProfitState,
-                    });
+                if (currentPairChartData && currentPairChartData.length > 0) {
+                    const currentPrice = currentPairChartData[currentPairChartData.length - 1].c;
+                    newProfitState = ((trade.type === 'buy' && currentPrice > trade.entryPrice) || (trade.type === 'sell' && currentPrice < trade.entryPrice))
+                        ? 'profit' : 'loss';
                 }
-            });
 
-            if (isSoundEnabled) {
-                if (needsHeartbeat && heartbeatSoundRef.current?.paused) {
-                    heartbeatSoundRef.current.play().catch(console.error);
-                } else if (!needsHeartbeat && !heartbeatSoundRef.current?.paused) {
-                    heartbeatSoundRef.current.pause();
-                    heartbeatSoundRef.current.currentTime = 0;
+                if (newProfitState === 'loss') {
+                    needsHeartbeat = true;
                 }
+
+                stillActive.push({
+                    ...trade,
+                    countdown: trade.countdown - 1,
+                    profitState: newProfitState,
+                });
             }
-            
-            return stillActive;
         });
+        
+        // Update the list of active trades
+        setActiveTrades(stillActive);
 
-        if (tradesToResolveNow.length > 0) {
-            const newResults: TradeHistoryItem[] = [];
+        // Resolve finished trades and update all relevant states
+        if (tradesToResolve.length > 0) {
+            const newHistoryItems: TradeHistoryItem[] = [];
+            let balanceChange = 0;
+            let winsToAdd = 0;
+            let soundToPlay: 'win' | 'loss' | null = null;
 
-            tradesToResolveNow.forEach(trade => {
+            tradesToResolve.forEach(trade => {
                 const currentChartData = chartDataRef.current?.[trade.pairId];
                 if (!currentChartData || currentChartData.length === 0) {
                     console.error("Cannot resolve trade, chart data not available for", trade.pairId);
-                    return;
+                    return; // Skip this trade if data is missing
                 }
         
                 const finalPrice = currentChartData[currentChartData.length - 1].c;
                 const { type, entryPrice, amount } = trade;
                 const isWin = (type === 'buy') ? finalPrice > entryPrice : finalPrice < entryPrice;
-
-                if (isWin) {
-                    setWinCount(prev => prev + 1);
-                }
         
                 const winAmount = amount * 0.9;
                 const resultAmount = isWin ? winAmount : -amount;
+        
+                if (isWin) {
+                    winsToAdd += 1;
+                    balanceChange += amount + winAmount; // Return initial investment + profit
+                    soundToPlay = 'win';
+                } else {
+                    soundToPlay = 'loss';
+                }
         
                 const newHistoryItem: TradeHistoryItem = {
                     id: `${new Date().getTime()}-${Math.random()}`,
@@ -353,21 +357,30 @@ export default function TradeSim() {
                     resultAmount: resultAmount,
                     isWin: isWin,
                 };
-                setTradeHistory(prev => [newHistoryItem, ...prev]);
-                newResults.push(newHistoryItem);
-        
-                if (isSoundEnabled) {
-                    const sound = isWin ? gainSoundRef.current : lossSoundRef.current;
-                    sound?.play().catch(console.error);
-                }
-                
-                if (isWin) {
-                  setBalance(prevBalance => prevBalance + amount + winAmount);
-                }
+                newHistoryItems.push(newHistoryItem);
             });
             
-            if (newResults.length > 0) {
-                setVisibleResults(prev => [...newResults, ...prev].slice(0, 5));
+            // Batch update all states related to trade resolution
+            if (newHistoryItems.length > 0) {
+                setBalance(prev => prev + balanceChange);
+                setWinCount(prev => prev + winsToAdd);
+                setTradeHistory(prev => [...newHistoryItems, ...prev]);
+                setVisibleResults(prev => [...newHistoryItems, ...prev].slice(0, 5));
+                
+                if (isSoundEnabled && soundToPlay) {
+                    const sound = soundToPlay === 'win' ? gainSoundRef.current : lossSoundRef.current;
+                    sound?.play().catch(console.error);
+                }
+            }
+        }
+        
+        // Handle heartbeat sound for remaining active trades
+        if (isSoundEnabled) {
+            if (needsHeartbeat && heartbeatSoundRef.current?.paused) {
+                heartbeatSoundRef.current.play().catch(console.error);
+            } else if (!needsHeartbeat && !heartbeatSoundRef.current?.paused) {
+                heartbeatSoundRef.current.pause();
+                heartbeatSoundRef.current.currentTime = 0;
             }
         }
     }, 1000);

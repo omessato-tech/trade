@@ -911,9 +911,6 @@ export default function TradeSim() {
                           <Separator className="my-2 bg-border/50" />
                           <div className="p-2 space-y-4">
                               <h3 className="px-3 font-semibold text-muted-foreground">Gráfico</h3>
-                              <div className="flex items-center justify-center gap-2">
-                                  <Button variant="ghost" className="flex-col h-auto gap-1" onClick={() => { handleZoom(); setIsMobileMenuOpen(false); }}><ZoomIn className="h-5 w-5" /><span className="text-xs">Zoom</span></Button>
-                              </div>
                               <div className="space-y-2">
                                   <p className="text-center text-sm text-muted-foreground">Tempo</p>
                                   <div className="flex items-center justify-center gap-2 text-xs">
@@ -1229,12 +1226,15 @@ export default function TradeSim() {
                   })}
               </div>
           </div>
+            <div className="absolute bottom-4 right-4 z-20">
+                <Button variant="ghost" size="icon" onClick={handleZoom} className="bg-background/50 hover:bg-background/80 rounded-full">
+                    <ZoomIn className="h-5 w-5" />
+                </Button>
+            </div>
         </main>
         {/* Bottom Toolbar */}
         <footer className="hidden md:flex flex-none items-center justify-between p-2 bg-[#1e222d] border-t border-border">
-            <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" onClick={handleZoom}><ZoomIn className="h-4 w-4" /></Button>
-            </div>
+            <div className="w-36"></div>
             <div className="flex items-center gap-1 text-xs">
                 {timeframes.map(tf => (
                     <Button key={tf} variant={activeTimeframe === tf ? 'secondary' : 'ghost'} size="sm" className="h-7 px-3" onClick={() => setActiveTimeframe(tf)}>{tf}</Button>
@@ -1369,6 +1369,8 @@ export default function TradeSim() {
     </div>
   );
 }
+
+    
 
     
 

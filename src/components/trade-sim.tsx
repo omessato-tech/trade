@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { cn } from '@/lib/utils';
 import { 
-    Plus, History, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, Bitcoin, X,
+    Plus, History, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, Bitcoin, X, ChevronDown,
     Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy, Award, Medal, Menu, Minus, Palette
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
@@ -27,7 +27,7 @@ import { TutorialGuide, type TutorialStep } from './tutorial-guide';
 import type { Chart as ChartJS } from 'chart.js';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuItem } from './ui/dropdown-menu';
 import { Switch } from './ui/switch';
 
 
@@ -750,9 +750,9 @@ export default function TradeSim() {
         }
       }}>
           <AlertDialogContent className="bg-transparent border-0 p-0 w-full max-w-[90vw] lg:max-w-2xl shadow-none focus-visible:ring-0 focus-visible:ring-offset-0">
-               <AlertDialogHeader className="sr-only">
-                  <AlertDialogTitle>Primeira Operação Concluída!</AlertDialogTitle>
-                  <AlertDialogDescription>Parabéns por completar sua primeira operação. Você está no caminho certo!</AlertDialogDescription>
+               <AlertDialogHeader>
+                  <AlertDialogTitle className="sr-only">Primeira Operação Concluída!</AlertDialogTitle>
+                  <AlertDialogDescription className="sr-only">Parabéns por completar sua primeira operação. Você está no caminho certo!</AlertDialogDescription>
               </AlertDialogHeader>
               <div className="relative">
                   <Image 
@@ -777,9 +777,9 @@ export default function TradeSim() {
 
       <AlertDialog open={showSecondMilestone} onOpenChange={setShowSecondMilestone}>
           <AlertDialogContent className="bg-transparent border-0 p-0 w-full max-w-[90vw] lg:max-w-2xl shadow-none focus-visible:ring-0 focus-visible:ring-offset-0">
-               <AlertDialogHeader className="sr-only">
-                  <AlertDialogTitle>Você é um Mestre Trader!</AlertDialogTitle>
-                  <AlertDialogDescription>Continue assim e domine o mercado. Sua jornada está apenas começando.</AlertDialogDescription>
+               <AlertDialogHeader>
+                  <AlertDialogTitle className="sr-only">Você é um Mestre Trader!</AlertDialogTitle>
+                  <AlertDialogDescription className="sr-only">Continue assim e domine o mercado. Sua jornada está apenas começando.</AlertDialogDescription>
               </AlertDialogHeader>
               <div className="relative">
                   <Image 
@@ -862,7 +862,7 @@ export default function TradeSim() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Currency Pair Selector */}
-        <div className="flex-none flex items-center gap-1 p-1 bg-[#1e222d] border-b border-border overflow-x-auto no-scrollbar">
+        <div className="flex-none flex items-center gap-1 p-1 bg-[#1e222d] border-b border-border">
             <div className="p-1 md:hidden">
               <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                   <SheetTrigger asChild>
@@ -929,41 +929,80 @@ export default function TradeSim() {
                   </SheetContent>
               </Sheet>
             </div>
-            {openPairs.map(pairId => {
-                const pair = allCurrencyPairs.find(p => p.id === pairId);
-                if (!pair) return null;
-                const isActive = activePairId === pairId;
-                const activeTradeCount = activeTrades.filter(t => t.pairId === pairId).length;
-                return (
-                    <div
-                        key={pair.id}
-                        onClick={() => handlePairChange(pair.id)}
-                        className={cn(
-                            "relative flex items-center gap-2 p-2 rounded-md cursor-pointer h-10 shrink-0",
-                            isActive ? "bg-card/50 border-b-2 border-primary" : "hover:bg-card/20"
-                        )}
-                    >
-                        {activeTradeCount > 0 && (
-                            <span className="absolute top-0 left-0 h-4 w-4 text-xs rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-                                {activeTradeCount}
-                            </span>
-                        )}
-                        {pair.icon ? <pair.icon className="h-5 w-5 text-orange-400" /> : (
-                            <div className="flex items-center">
-                                <span className="text-xl">{pair.flag1}</span>
-                                <span className="text-xl -ml-2">{pair.flag2}</span>
+            {/* Desktop Pair Selector */}
+            <div className="hidden md:flex flex-1 items-center gap-1 overflow-x-auto no-scrollbar">
+                {openPairs.map(pairId => {
+                    const pair = allCurrencyPairs.find(p => p.id === pairId);
+                    if (!pair) return null;
+                    const isActive = activePairId === pairId;
+                    const activeTradeCount = activeTrades.filter(t => t.pairId === pairId).length;
+                    return (
+                        <div
+                            key={pair.id}
+                            onClick={() => handlePairChange(pair.id)}
+                            className={cn(
+                                "relative flex items-center gap-2 p-2 rounded-md cursor-pointer h-10 shrink-0",
+                                isActive ? "bg-card/50 border-b-2 border-primary" : "hover:bg-card/20"
+                            )}
+                        >
+                            {activeTradeCount > 0 && (
+                                <span className="absolute top-0 left-0 h-4 w-4 text-xs rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                                    {activeTradeCount}
+                                </span>
+                            )}
+                            {pair.icon ? <pair.icon className="h-5 w-5 text-orange-400" /> : (
+                                <div className="flex items-center">
+                                    <span className="text-xl">{pair.flag1}</span>
+                                    <span className="text-xl -ml-2">{pair.flag2}</span>
+                                </div>
+                            )}
+                            <div className="flex flex-col items-start">
+                                <span className="text-xs font-semibold">{pair.name}</span>
+                                <span className="text-xs text-muted-foreground">{pair.type}</span>
                             </div>
-                        )}
-                        <div className="flex flex-col items-start">
-                            <span className="text-xs font-semibold">{pair.name}</span>
-                            <span className="text-xs text-muted-foreground">{pair.type}</span>
+                            <Button variant="ghost" size="icon" className="absolute top-0 right-0 h-4 w-4 text-muted-foreground hover:text-foreground" onClick={(e) => handleRemovePair(e, pair.id)}>
+                                <X className="h-3 w-3" />
+                            </Button>
                         </div>
-                        <Button variant="ghost" size="icon" className="absolute top-0 right-0 h-4 w-4 text-muted-foreground hover:text-foreground" onClick={(e) => handleRemovePair(e, pair.id)}>
-                            <X className="h-3 w-3" />
+                    )
+                })}
+            </div>
+            {/* Mobile Pair Selector */}
+            <div className="md:hidden flex-1 flex items-center gap-2">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="flex items-center gap-2 h-10">
+                            {activePair.icon ? <activePair.icon className="h-5 w-5 text-orange-400" /> : (
+                                <div className="flex items-center">
+                                    <span className="text-xl">{activePair.flag1}</span>
+                                    <span className="text-xl -ml-2">{activePair.flag2}</span>
+                                </div>
+                            )}
+                            <div className="flex flex-col items-start">
+                                <span className="text-xs font-semibold">{activePair.name}</span>
+                                <span className="text-xs text-muted-foreground">{activePair.type}</span>
+                            </div>
+                            <ChevronDown className="h-4 w-4" />
                         </Button>
-                    </div>
-                )
-            })}
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuLabel>Pares Abertos</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {openPairs.map(pairId => {
+                            const pair = allCurrencyPairs.find(p => p.id === pairId);
+                            if (!pair) return null;
+                            return (
+                                <DropdownMenuItem key={pairId} onClick={() => handlePairChange(pairId)}>
+                                    {pair.name}
+                                </DropdownMenuItem>
+                            );
+                        })}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={(e) => handleRemovePair(e, activePairId)}>
+                    <X className="h-3 w-3" />
+                </Button>
+            </div>
              <Dialog open={isAssetSelectorOpen} onOpenChange={setIsAssetSelectorOpen}>
                 <DialogTrigger asChild>
                     <Button variant="ghost" size="icon" className="border border-border/50 h-10 w-10">
@@ -1330,5 +1369,7 @@ export default function TradeSim() {
     </div>
   );
 }
+
+    
 
     

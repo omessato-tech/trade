@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from '@/lib/utils';
 import { 
     Plus, History, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, Bitcoin, X, ChevronDown,
-    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy, Award, Medal, Menu, Minus, Palette
+    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy, Award, Medal, Menu, Minus, Palette, Podium
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
@@ -23,6 +23,7 @@ import { TradeHistoryPanel } from './trade-history-panel';
 import type { TradeHistoryItem } from './trade-history-panel';
 import { ScrollArea } from './ui/scroll-area';
 import { AchievementsPanel } from './achievements-panel';
+import { LeaderboardPanel, type Player } from './leaderboard-panel';
 import { TutorialGuide, type TutorialStep } from './tutorial-guide';
 import type { Chart as ChartJS } from 'chart.js';
 import { Label } from './ui/label';
@@ -108,6 +109,18 @@ const achievements: Achievement[] = [
     { name: 'Ouro', wins: 20, icon: Trophy, color: 'text-[#ffd700]', glowColor: '#ffd700', bgColor: 'bg-[#ffd700]/10', shadowColor: 'shadow-[#ffd700]/20', gradientFrom: 'from-[#5e4d00]', gradientTo: 'to-[#13161c]', progressBg: '[&>div]:bg-[#ffd700]' },
 ];
 
+const mockPlayers: Player[] = [
+    { id: 'p1', name: 'R. Oliveira', nationality: 'BR', balance: 950000 },
+    { id: 'p2', name: 'J. Smith', nationality: 'US', balance: 920000 },
+    { id: 'p3', name: 'A. Müller', nationality: 'DE', balance: 880000 },
+    { id: 'p4', name: 'L. Pereira', nationality: 'BR', balance: 850000 },
+    { id: 'p5', name: 'S. Tanaka', nationality: 'JP', balance: 810000 },
+    { id: 'p6', name: 'M. Dubois', nationality: 'FR', balance: 780000 },
+    { id: 'p7', name: 'G. Costa', nationality: 'BR', balance: 750000 },
+    { id: 'p8', name: 'C. Williams', nationality: 'GB', balance: 720000 },
+    { id: 'p9', name: 'I. Petrov', nationality: 'RU', balance: 690000 },
+    { id: 'p10', name: 'F. Silva', nationality: 'BR', balance: 660000 },
+];
 
 export default function TradeSim() {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -902,6 +915,12 @@ function GameUI() {
           <div ref={achievementsButtonRef} className="inline-block">
             <AchievementsPanel winCount={winCount} achievements={achievements} />
           </div>
+          <LeaderboardPanel
+            players={mockPlayers}
+            currentUser={{ id: 'currentUser', name: 'Você', nationality: 'BR', balance: balance }}
+          >
+            <Button variant="ghost" size="icon"><Podium className="h-5 w-5" /></Button>
+          </LeaderboardPanel>
           <Button variant="ghost" size="icon" onClick={() => setIsSoundEnabled(prev => !prev)}>
             {isSoundEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
           </Button>
@@ -945,6 +964,15 @@ function GameUI() {
                                   <span>Central de Conquistas</span>
                                 </Button>
                               </AchievementsPanel>
+                              <LeaderboardPanel
+                                  players={mockPlayers}
+                                  currentUser={{ id: 'currentUser', name: 'Você', nationality: 'BR', balance: balance }}
+                              >
+                                  <Button variant="ghost" className="justify-start gap-2 px-3">
+                                      <Podium className="h-5 w-5" />
+                                      <span>Ranking de Players</span>
+                                  </Button>
+                              </LeaderboardPanel>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" className="justify-start gap-2 px-3">

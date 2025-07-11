@@ -7,6 +7,8 @@ import { Trophy, Lock, CheckCircle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import type { Achievement } from "./trade-sim";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import Image from "next/image";
 
 interface AchievementsPanelProps {
     winCount: number;
@@ -117,6 +119,19 @@ export function AchievementsPanel({ winCount, achievements, children }: Achievem
                 </SheetHeader>
                 <ScrollArea className="flex-1 p-6">
                     <div className="space-y-8">
+                        <Carousel className="w-full max-w-xs mx-auto">
+                          <CarouselContent>
+                              <CarouselItem>
+                                <Image src="https://i.imgur.com/WsBE1JC.png" alt="Conquista 1" width={400} height={400} className="rounded-lg" />
+                              </CarouselItem>
+                              <CarouselItem>
+                                <Image src="https://i.imgur.com/MBdAGAR.png" alt="Conquista 2" width={400} height={400} className="rounded-lg" />
+                              </CarouselItem>
+                          </CarouselContent>
+                          <CarouselPrevious className="left-2" />
+                          <CarouselNext className="right-2" />
+                        </Carousel>
+
                         <CurrentRankDisplay rank={currentRank} winCount={winCount} />
                         
                         {nextAchievement && (

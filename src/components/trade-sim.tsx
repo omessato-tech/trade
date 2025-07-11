@@ -885,8 +885,18 @@ export default function TradeSim() {
                       </div>
                       <ScrollArea className="flex-1">
                           <div className="flex flex-col gap-1 p-2">
-                              <TradeHistoryPanel history={tradeHistory} allPairs={allCurrencyPairs} />
-                              <AchievementsPanel winCount={winCount} achievements={achievements} />
+                              <TradeHistoryPanel history={tradeHistory} allPairs={allCurrencyPairs}>
+                                <Button variant="ghost" className="justify-start gap-2 px-3">
+                                  <History className="h-5 w-5" />
+                                  <span>Histórico de Trades</span>
+                                </Button>
+                              </TradeHistoryPanel>
+                              <AchievementsPanel winCount={winCount} achievements={achievements}>
+                                <Button variant="ghost" className="justify-start gap-2 px-3">
+                                  <Trophy className="h-5 w-5" />
+                                  <span>Central de Conquistas</span>
+                                </Button>
+                              </AchievementsPanel>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" className="justify-start gap-2 px-3">
@@ -1424,9 +1434,3 @@ export default function TradeSim() {
     </div>
   );
 }
-
-    
-
-    
-
-    

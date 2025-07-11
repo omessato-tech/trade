@@ -22,9 +22,10 @@ export interface TradeHistoryItem {
 interface TradeHistoryPanelProps {
     history: TradeHistoryItem[];
     allPairs: CurrencyPair[];
+    children?: React.ReactNode;
 }
 
-export function TradeHistoryPanel({ history, allPairs }: TradeHistoryPanelProps) {
+export function TradeHistoryPanel({ history, allPairs, children }: TradeHistoryPanelProps) {
     const getPairInfo = (pairId: string) => {
         return allPairs.find(p => p.id === pairId);
     };
@@ -32,7 +33,7 @@ export function TradeHistoryPanel({ history, allPairs }: TradeHistoryPanelProps)
     return (
         <Sheet>
             <SheetTrigger asChild>
-                <Button variant="ghost" size="icon"><History className="h-5 w-5" /></Button>
+                {children || <Button variant="ghost" size="icon"><History className="h-5 w-5" /></Button>}
             </SheetTrigger>
             <SheetContent className="w-[350px] sm:w-[450px] p-0 flex flex-col bg-[#1e222d] border-l border-border" side="left">
                 <SheetHeader className="p-4 border-b border-border/50">

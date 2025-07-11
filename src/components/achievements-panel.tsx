@@ -11,6 +11,7 @@ import type { Achievement } from "./trade-sim";
 interface AchievementsPanelProps {
     winCount: number;
     achievements: Achievement[];
+    children?: React.ReactNode;
 }
 
 const CurrentRankDisplay = ({ rank, winCount }: { rank: Achievement | undefined; winCount: number }) => {
@@ -81,7 +82,7 @@ const AchievementCard = ({ ach, isUnlocked }: { ach: Achievement; isUnlocked: bo
 );
 
 
-export function AchievementsPanel({ winCount, achievements }: AchievementsPanelProps) {
+export function AchievementsPanel({ winCount, achievements, children }: AchievementsPanelProps) {
     const getNextAchievement = () => {
         return achievements.find(a => winCount < a.wins);
     };
@@ -108,7 +109,7 @@ export function AchievementsPanel({ winCount, achievements }: AchievementsPanelP
     return (
         <Sheet>
             <SheetTrigger asChild>
-                <Button variant="ghost" size="icon"><Trophy className="h-5 w-5" /></Button>
+                {children || <Button variant="ghost" size="icon"><Trophy className="h-5 w-5" /></Button>}
             </SheetTrigger>
             <SheetContent className="w-[350px] sm:w-[450px] p-0 flex flex-col bg-[#13161c] border-l border-border/50" side="left">
                 <SheetHeader className="p-4 border-b border-border/50 text-center">

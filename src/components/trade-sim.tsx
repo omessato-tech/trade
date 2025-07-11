@@ -147,6 +147,7 @@ function GameUI() {
   const [tradeDuration, setTradeDuration] = useState(30);
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [visibleResults, setVisibleResults] = useState<TradeHistoryItem[]>([]);
+  const [aiInfluence, setAiInfluence] = useState<{ direction: 'buy' | 'sell', strength: number } | null>(null);
   
   const gainSoundRef = useRef<HTMLAudioElement | null>(null);
   const lossSoundRef = useRef<HTMLAudioElement | null>(null);
@@ -172,7 +173,7 @@ function GameUI() {
   const [predictions, setPredictions] = useState<PredictionMessage[]>([]);
   const [isChatMinimized, setIsChatMinimized] = useState(true);
   const [isSoundEnabled, setIsSoundEnabled] = useState(true);
-  const [isTurboMode, setIsTurboMode] = useState(false);
+  const [isProMode, setIsProMode] = useState(false);
   
   const chartDataRef = useRef<{ [key: string]: any[] }>();
   chartDataRef.current = chartData;
@@ -299,7 +300,16 @@ function GameUI() {
 
             const lastCandle = existingData[existingData.length - 1];
             const newTime = lastCandle.x + 5000; // New candle every 5 seconds on fallback
-            const open = lastCandle.c;
+            let open = lastCandle.c;
+
+            // Apply AI influence if active
+            let influence = 0;
+            if (aiInfluence) {
+                const influenceFactor = (aiInfluence.direction === 'buy' ? 1 : -1) * aiInfluence.strength * (open * 0.00005);
+                influence = influenceFactor * (Math.random() + 0.5); // Add some randomness
+                open = open + influence;
+            }
+
             const close = open + (Math.random() - 0.5) * (open * 0.0005);
             const high = Math.max(open, close) + Math.random() * (open * 0.0005 * 0.5);
             const low = Math.min(open, close) - Math.random() * (open * 0.0005 * 0.5);
@@ -313,7 +323,7 @@ function GameUI() {
             };
         });
     }
-  }, [activePairId]);
+  }, [activePairId, aiInfluence]);
 
   // Update chart data on an interval
   useEffect(() => {
@@ -549,7 +559,7 @@ function GameUI() {
     setIsDragging(false);
   };
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
+  const handleMouseMove = (e: MouseEvent) => {
     if (!isDragging || !chartAreaRef.current || !chatWrapperRef.current) return;
 
     const chartAreaRect = chartAreaRef.current.getBoundingClientRect();
@@ -569,7 +579,7 @@ function GameUI() {
       top: newTop - chartAreaRect.top,
       left: newLeft - chartAreaRect.left,
     });
-  }, [isDragging]);
+  };
 
   useEffect(() => {
     const mouseMoveHandler = (e: MouseEvent) => handleMouseMove(e);
@@ -584,7 +594,7 @@ function GameUI() {
       document.removeEventListener('mousemove', mouseMoveHandler);
       document.removeEventListener('mouseup', mouseUpHandler);
     };
-  }, [isDragging, handleMouseMove]);
+  }, [isDragging]);
 
 
   const formatCurrency = (value: number) => {
@@ -609,12 +619,14 @@ function GameUI() {
   const handleIncrementAmount = () => setTradeAmount(prev => prev + 1);
   const handleDecrementAmount = () => setTradeAmount(prev => Math.max(0.01, prev - 1));
 
-  const handleTrade = (type: 'buy' | 'sell', amount: number) => {
+  const handleTrade = (type: 'buy' | 'sell', rawAmount: number) => {
     const currentChart = chartData[activePairId];
     if (!currentChart || currentChart.length < 1) {
       return;
     }
     
+    const amount = isProMode ? rawAmount * 1.5 : rawAmount;
+
     if (balance < amount) {
       return;
     }
@@ -650,6 +662,11 @@ function GameUI() {
     
     handleTrade(predictionToFollow.type, predictionToFollow.amount);
     setPredictions(prev => prev.map(p => p.id === predictionId ? { ...p, status: 'followed' } : p));
+    
+    // Set AI influence
+    setAiInfluence({ direction: predictionToFollow.type, strength: Math.random() * 2 + 1 }); // Random strength from 1 to 3
+    // Remove influence after a while
+    setTimeout(() => setAiInfluence(null), 15000); // Influence lasts 15 seconds
   };
   
   const handleIgnorePrediction = (predictionId: string) => {
@@ -904,10 +921,7 @@ function GameUI() {
                           <SheetTitle className="text-xl font-bold">Menu Principal</SheetTitle>
                       </SheetHeader>
                       <div className="flex flex-col gap-4 border-b border-border/50 p-4">
-                           <div>
-                                <p className="text-xs text-muted-foreground">Saldo da Conta</p>
-                                <p className="text-primary font-bold text-2xl">R$ {balance.toFixed(2)}</p>
-                            </div>
+                           <BalanceProgressBar balance={balance} />
                            <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10 hover:text-primary">
                               + DEPOSITAR
                           </Button>
@@ -1351,7 +1365,7 @@ function GameUI() {
           
           {/* Desktop Controls */}
           <div className="hidden md:flex flex-col items-center gap-4 flex-grow justify-center">
-              {isTurboMode ? (
+              {isProMode ? (
                   // MODO PRO
                   <div className="flex flex-col items-center gap-4 w-full">
                       <div className="w-full max-w-[200px] mx-auto">
@@ -1371,10 +1385,11 @@ function GameUI() {
                           <Label className="text-xs text-muted-foreground uppercase tracking-wider text-center block mb-1">Investimento</Label>
                           <Input
                               type="text"
-                              value={formatCurrency(tradeAmount)}
-                              onChange={handleInvestmentChange}
+                              value={formatCurrency(tradeAmount * 1.5)}
+                              readOnly
                               className="h-9 text-center bg-input/80 border-border/50 text-foreground backdrop-blur-sm"
                           />
+                           <p className="text-xs text-center mt-1 text-primary">Aposta agressiva: +50%</p>
                       </div>
                       <div className="grid grid-cols-2 gap-2 w-full max-w-[200px] mx-auto">
                           <Button
@@ -1453,8 +1468,8 @@ function GameUI() {
                   <Label htmlFor="pro-mode-switch" className="text-xs text-muted-foreground">Modo PRO</Label>
                   <Switch
                       id="pro-mode-switch"
-                      checked={isTurboMode}
-                      onCheckedChange={setIsTurboMode}
+                      checked={isProMode}
+                      onCheckedChange={setIsProMode}
                   />
               </div>
           </div>
@@ -1462,4 +1477,3 @@ function GameUI() {
     </div>
   );
 }
-

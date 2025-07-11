@@ -109,6 +109,34 @@ const achievements: Achievement[] = [
 
 
 export default function TradeSim() {
+  const [isPlaying, setIsPlaying] = useState(false);
+  
+  if (!isPlaying) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground text-center p-4">
+        <div className="relative mb-8">
+            <h1 className="text-7xl md:text-9xl font-bold text-primary animate-pulse" style={{ filter: `drop-shadow(0 0 25px hsl(var(--primary)))` }}>
+                TradeSim
+            </h1>
+            <p className="text-xl md:text-2xl text-muted-foreground mt-2">
+                Aprenda a operar. Domine o mercado.
+            </p>
+        </div>
+        <p className="max-w-2xl mb-8">
+            Teste suas estratégias de trade em um ambiente de simulação ultra-realista. Acompanhe o mercado, siga os sinais da nossa IA e veja seu saldo crescer. Você está pronto para se tornar uma lenda?
+        </p>
+        <Button size="lg" className="text-lg" onClick={() => setIsPlaying(true)}>
+            Começar a Operar
+        </Button>
+      </div>
+    );
+  }
+
+  return <GameUI />;
+}
+
+
+function GameUI() {
   const [balance, setBalance] = useState(1000);
   const [activePairId, setActivePairId] = useState('EUR/USD');
   const [openPairs, setOpenPairs] = useState(['EUR/USD', 'EUR/JPY', 'BTC-USD', 'CHF/JPY']);
@@ -468,7 +496,7 @@ export default function TradeSim() {
         }
         return prevPredictions;
       });
-    }, 30000); // 30 seconds
+    }, 10000); // 10 seconds
 
     return () => clearInterval(predictionInterval);
   }, [balance, activeTrades.length, isSoundEnabled, activePair.name]);

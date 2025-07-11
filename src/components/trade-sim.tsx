@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from '@/lib/utils';
 import { 
     Plus, History, ArrowUpRight, ArrowDownLeft, Timer, ZoomIn, Bitcoin, X, ChevronDown,
-    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy, Award, Medal, Menu, Minus, Palette, Podium
+    Gem, CircleDollarSign, Lightbulb, Waves, Volume2, VolumeX, Trophy, Award, Medal, Menu, Minus, Palette
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
@@ -110,16 +110,16 @@ const achievements: Achievement[] = [
 ];
 
 const mockPlayers: Player[] = [
-    { id: 'p1', name: 'R. Oliveira', nationality: 'BR', balance: 950000 },
-    { id: 'p2', name: 'J. Smith', nationality: 'US', balance: 920000 },
-    { id: 'p3', name: 'A. Müller', nationality: 'DE', balance: 880000 },
-    { id: 'p4', name: 'L. Pereira', nationality: 'BR', balance: 850000 },
-    { id: 'p5', name: 'S. Tanaka', nationality: 'JP', balance: 810000 },
-    { id: 'p6', name: 'M. Dubois', nationality: 'FR', balance: 780000 },
-    { id: 'p7', name: 'G. Costa', nationality: 'BR', balance: 750000 },
-    { id: 'p8', name: 'C. Williams', nationality: 'GB', balance: 720000 },
-    { id: 'p9', name: 'I. Petrov', nationality: 'RU', balance: 690000 },
-    { id: 'p10', name: 'F. Silva', nationality: 'BR', balance: 660000 },
+    { id: 'p1', name: 'R. Oliveira', nationality: 'BR', balance: 950000, avatar: 'https://i.imgur.com/kZxqYd9.png' },
+    { id: 'p2', name: 'J. Smith', nationality: 'US', balance: 920000, avatar: 'https://i.imgur.com/Jvh1OJh.png' },
+    { id: 'p3', name: 'A. Müller', nationality: 'DE', balance: 880000, avatar: 'https://i.imgur.com/QpYgRkL.png' },
+    { id: 'p4', name: 'L. Pereira', nationality: 'BR', balance: 850000, avatar: 'https://i.imgur.com/kZxqYd9.png' },
+    { id: 'p5', name: 'S. Tanaka', nationality: 'JP', balance: 810000, avatar: 'https://i.imgur.com/fRLEh3R.png' },
+    { id: 'p6', name: 'M. Dubois', nationality: 'FR', balance: 780000, avatar: 'https://i.imgur.com/zSM1X4d.png' },
+    { id: 'p7', name: 'G. Costa', nationality: 'BR', balance: 750000, avatar: 'https://i.imgur.com/kZxqYd9.png' },
+    { id: 'p8', name: 'C. Williams', nationality: 'GB', balance: 720000, avatar: 'https://i.imgur.com/Jvh1OJh.png' },
+    { id: 'p9', name: 'I. Petrov', nationality: 'RU', balance: 690000, avatar: 'https://i.imgur.com/QpYgRkL.png' },
+    { id: 'p10', name: 'F. Silva', nationality: 'BR', balance: 660000, avatar: 'https://i.imgur.com/kZxqYd9.png' },
 ];
 
 export default function TradeSim() {
@@ -917,9 +917,9 @@ function GameUI() {
           </div>
           <LeaderboardPanel
             players={mockPlayers}
-            currentUser={{ id: 'currentUser', name: 'Você', nationality: 'BR', balance: balance }}
+            currentUser={{ id: 'currentUser', name: 'Você', nationality: 'BR', balance: balance, avatar: 'https://i.imgur.com/kZxqYd9.png' }}
           >
-            <Button variant="ghost" size="icon"><Podium className="h-5 w-5" /></Button>
+            <Button variant="ghost" size="icon"><Award className="h-5 w-5" /></Button>
           </LeaderboardPanel>
           <Button variant="ghost" size="icon" onClick={() => setIsSoundEnabled(prev => !prev)}>
             {isSoundEnabled ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
@@ -966,10 +966,10 @@ function GameUI() {
                               </AchievementsPanel>
                               <LeaderboardPanel
                                   players={mockPlayers}
-                                  currentUser={{ id: 'currentUser', name: 'Você', nationality: 'BR', balance: balance }}
+                                  currentUser={{ id: 'currentUser', name: 'Você', nationality: 'BR', balance: balance, avatar: 'https://i.imgur.com/kZxqYd9.png' }}
                               >
                                   <Button variant="ghost" className="justify-start gap-2 px-3">
-                                      <Podium className="h-5 w-5" />
+                                      <Award className="h-5 w-5" />
                                       <span>Ranking de Players</span>
                                   </Button>
                               </LeaderboardPanel>

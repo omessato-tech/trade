@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Podium, Globe, Timer } from "lucide-react";
+import { Award, Globe, Timer } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -157,12 +157,12 @@ export function LeaderboardPanel({ players, currentUser, children }: Leaderboard
     return (
         <Sheet>
             <SheetTrigger asChild>
-                {children || <Button variant="ghost" size="icon"><Podium className="h-5 w-5" /></Button>}
+                {children || <Button variant="ghost" size="icon"><Award className="h-5 w-5" /></Button>}
             </SheetTrigger>
             <SheetContent className="w-[400px] sm:w-[500px] p-0 flex flex-col bg-[#13161c] border-l border-border/50" side="left">
                 <SheetHeader className="p-4 border-b border-border/50 text-center">
                     <SheetTitle className="text-2xl font-bold flex items-center justify-center gap-2">
-                        <Podium className="h-7 w-7 text-primary" />
+                        <Award className="h-7 w-7 text-primary" />
                         Ranking Semanal
                     </SheetTitle>
                 </SheetHeader>

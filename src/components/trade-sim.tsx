@@ -29,6 +29,7 @@ import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuItem } from './ui/dropdown-menu';
 import { Switch } from './ui/switch';
+import { BalanceProgressBar } from './balance-progress-bar';
 
 
 const timeframes = ['5s', '30s', '1m', '5m'];
@@ -1288,19 +1289,8 @@ function GameUI() {
       <aside 
           className="w-full md:w-72 md:flex-none p-4 flex flex-col gap-4 bg-card border-t md:border-t-0 md:border-l border-border"
       >
-          <div className="flex justify-between items-center bg-background/50 p-2 rounded-lg">
-              <div>
-                  <span className="text-sm text-muted-foreground">Saldo</span>
-                  <span className="block text-2xl font-bold text-primary font-mono">R$ {balance.toFixed(2)}</span>
-              </div>
-              <div className="flex flex-col items-center gap-1">
-                  <Label htmlFor="pro-mode-switch" className="text-xs text-muted-foreground">Modo PRO</Label>
-                  <Switch
-                      id="pro-mode-switch"
-                      checked={isTurboMode}
-                      onCheckedChange={setIsTurboMode}
-                  />
-              </div>
+          <div className="flex justify-between items-center bg-transparent p-0">
+              <BalanceProgressBar balance={balance} />
           </div>
 
           <div className="flex-grow md:hidden" />
@@ -1458,7 +1448,18 @@ function GameUI() {
                   </div>
               )}
           </div>
+           <div className="hidden md:flex justify-center items-center">
+              <div className="flex flex-col items-center gap-1">
+                  <Label htmlFor="pro-mode-switch" className="text-xs text-muted-foreground">Modo PRO</Label>
+                  <Switch
+                      id="pro-mode-switch"
+                      checked={isTurboMode}
+                      onCheckedChange={setIsTurboMode}
+                  />
+              </div>
+          </div>
       </aside>
     </div>
   );
 }
+

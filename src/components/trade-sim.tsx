@@ -923,8 +923,10 @@ function GameUI() {
                       <SheetHeader className="p-4 border-b border-border/50 text-left">
                           <SheetTitle className="text-xl font-bold">Menu Principal</SheetTitle>
                       </SheetHeader>
-                      <div className="flex flex-col gap-4 border-b border-border/50 p-4">
-                           <BalanceProgressBar balance={balance} />
+                      <div className="flex flex-col gap-2 p-4 border-b border-border/50">
+                           <div className="scale-90 -mx-4">
+                            <BalanceProgressBar balance={balance} />
+                           </div>
                            <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary/10 hover:text-primary">
                               + DEPOSITAR
                           </Button>
@@ -1348,6 +1350,21 @@ function GameUI() {
           
           {/* Mobile Controls */}
           <div className="md:hidden flex flex-col gap-4">
+              <div className="flex justify-between items-center gap-4">
+                 <div>
+                    <Label className="text-xs text-muted-foreground">Saldo</Label>
+                    <p className="font-bold text-lg">R$ {formatCurrency(balance)}</p>
+                 </div>
+                 <div className="flex items-center gap-2">
+                    <Label htmlFor="pro-mode-switch-mobile" className="text-xs text-muted-foreground">Modo PRO</Label>
+                    <Switch
+                        id="pro-mode-switch-mobile"
+                        checked={isProMode}
+                        onCheckedChange={setIsProMode}
+                    />
+                 </div>
+              </div>
+              <Separator />
               <div className="grid grid-cols-2 gap-4">
                   <div>
                       <Label className="text-xs text-muted-foreground uppercase tracking-wider text-center block mb-1">Tempo</Label>
@@ -1458,4 +1475,3 @@ function GameUI() {
     </div>
   );
 }
-

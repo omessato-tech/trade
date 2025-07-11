@@ -485,7 +485,12 @@ function GameUI() {
         if (activeTrades.length === 0 && !hasActivePrediction) {
           const predictionType = Math.random() > 0.5 ? 'buy' : 'sell';
           
-          const predictionPercentage = Math.floor(Math.random() * 11) + 10; // 10% to 20%
+          let predictionPercentage;
+          if (isProMode) {
+              predictionPercentage = Math.floor(Math.random() * 16) + 15; // 15% to 30% for PRO
+          } else {
+              predictionPercentage = Math.floor(Math.random() * 11) + 5; // 5% to 15% for normal
+          }
           
           const predictionAmount = (balance * predictionPercentage) / 100;
 
@@ -510,7 +515,7 @@ function GameUI() {
     }, 10000); // 10 seconds
 
     return () => clearInterval(predictionInterval);
-  }, [balance, activeTrades.length, isSoundEnabled, activePair.name]);
+  }, [balance, activeTrades.length, isSoundEnabled, activePair.name, isProMode]);
 
   // Prediction Countdown Logic
   useEffect(() => {
@@ -619,13 +624,11 @@ function GameUI() {
   const handleIncrementAmount = () => setTradeAmount(prev => prev + 1);
   const handleDecrementAmount = () => setTradeAmount(prev => Math.max(0.01, prev - 1));
 
-  const handleTrade = (type: 'buy' | 'sell', rawAmount: number) => {
+  const handleTrade = (type: 'buy' | 'sell', amount: number) => {
     const currentChart = chartData[activePairId];
     if (!currentChart || currentChart.length < 1) {
       return;
     }
-    
-    const amount = isProMode ? rawAmount * 1.5 : rawAmount;
 
     if (balance < amount) {
       return;
@@ -908,7 +911,7 @@ function GameUI() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Currency Pair Selector */}
-        <div className="flex-none flex items-center gap-1 p-1 bg-[#1e222d] border-b border-border">
+        <div className="flex-none flex items-center justify-between gap-1 p-1 bg-[#1e222d] border-b border-border">
             <div className="p-1 md:hidden">
               <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                   <SheetTrigger asChild>
@@ -1016,6 +1019,27 @@ function GameUI() {
                         </div>
                     )
                 })}
+                 <Dialog open={isAssetSelectorOpen} onOpenChange={setIsAssetSelectorOpen}>
+                    <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="border border-border/50 h-10 w-10">
+                            <Plus className="h-5 w-5" />
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="p-0 max-w-4xl bg-transparent border-0 shadow-none">
+                        <DialogHeader>
+                            <DialogTitle className="sr-only">Select Asset</DialogTitle>
+                            <DialogDescription className="sr-only">
+                                Search for and select a currency pair or cryptocurrency to trade.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <AssetSelector 
+                            allPairs={allCurrencyPairs}
+                            openPairs={openPairs}
+                            onSelectPair={handleAddPair}
+                            onClose={() => setIsAssetSelectorOpen(false)}
+                        />
+                    </DialogContent>
+                </Dialog>
             </div>
             {/* Mobile Pair Selector */}
             <div className="md:hidden flex-1 flex items-center gap-2">
@@ -1053,7 +1077,10 @@ function GameUI() {
                     <X className="h-3 w-3" />
                 </Button>
             </div>
-             <Dialog open={isAssetSelectorOpen} onOpenChange={setIsAssetSelectorOpen}>
+            <div className="hidden md:flex md:w-80 lg:w-96 pl-2">
+                <BalanceProgressBar balance={balance} />
+            </div>
+             <Dialog open={isAssetSelectorOpen && !isMobileMenuOpen} onOpenChange={setIsAssetSelectorOpen}>
                 <DialogTrigger asChild>
                     <Button variant="ghost" size="icon" className="border border-border/50 h-10 w-10">
                         <Plus className="h-5 w-5" />
@@ -1303,8 +1330,18 @@ function GameUI() {
       <aside 
           className="w-full md:w-72 md:flex-none p-4 flex flex-col gap-4 bg-card border-t md:border-t-0 md:border-l border-border"
       >
-          <div className="flex justify-between items-center bg-transparent p-0">
-              <BalanceProgressBar balance={balance} />
+          <div className="hidden md:flex justify-between items-center bg-transparent p-0">
+             <div className="flex flex-col items-center gap-1">
+                  <Label htmlFor="pro-mode-switch" className="text-xs text-muted-foreground">Modo PRO</Label>
+                  <Switch
+                      id="pro-mode-switch"
+                      checked={isProMode}
+                      onCheckedChange={setIsProMode}
+                  />
+              </div>
+              <Button variant="outline" className="border-primary text-primary hover:bg-primary/10 hover:text-primary">
+                  + DEPOSITAR
+              </Button>
           </div>
 
           <div className="flex-grow md:hidden" />
@@ -1365,115 +1402,60 @@ function GameUI() {
           
           {/* Desktop Controls */}
           <div className="hidden md:flex flex-col items-center gap-4 flex-grow justify-center">
-              {isProMode ? (
-                  // MODO PRO
-                  <div className="flex flex-col items-center gap-4 w-full">
-                      <div className="w-full max-w-[200px] mx-auto">
-                          <Label className="text-xs text-muted-foreground uppercase tracking-wider text-center block mb-1">Tempo</Label>
-                          <Select value={String(tradeDuration)} onValueChange={(val) => setTradeDuration(Number(val))}>
-                              <SelectTrigger className="h-9 bg-input/80 border-border/50 text-foreground backdrop-blur-sm">
-                                  <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                  <SelectItem value="30">30 segundos</SelectItem>
-                                  <SelectItem value="60">1 minuto</SelectItem>
-                                  <SelectItem value="300">5 minutos</SelectItem>
-                              </SelectContent>
-                          </Select>
-                      </div>
-                      <div className="w-full max-w-[200px] mx-auto">
-                          <Label className="text-xs text-muted-foreground uppercase tracking-wider text-center block mb-1">Investimento</Label>
+              <div className="flex flex-col items-center gap-4 w-full">
+                  <div className="w-full max-w-[200px] mx-auto">
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider text-center block mb-1">Tempo</Label>
+                      <Select value={String(tradeDuration)} onValueChange={(val) => setTradeDuration(Number(val))}>
+                          <SelectTrigger className="h-9 bg-input/80 border-border/50 text-foreground backdrop-blur-sm">
+                              <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="30">30 segundos</SelectItem>
+                              <SelectItem value="60">1 minuto</SelectItem>
+                              <SelectItem value="300">5 minutos</SelectItem>
+                          </SelectContent>
+                      </Select>
+                  </div>
+                  <div className="w-full max-w-[200px] mx-auto">
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider text-center block mb-1">Investimento</Label>
+                      <div className="relative">
+                          <Button variant="outline" size="icon" className="absolute left-0 top-0 h-9 w-9" onClick={handleDecrementAmount}>
+                              <Minus className="h-4 w-4" />
+                          </Button>
+                          <span className="absolute left-10 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
                           <Input
                               type="text"
-                              value={formatCurrency(tradeAmount * 1.5)}
-                              readOnly
-                              className="h-9 text-center bg-input/80 border-border/50 text-foreground backdrop-blur-sm"
+                              value={formatCurrency(tradeAmount)}
+                              onChange={handleInvestmentChange}
+                              className="h-9 text-center pl-16 pr-10 bg-input/80 border-border/50 text-foreground backdrop-blur-sm"
                           />
-                           <p className="text-xs text-center mt-1 text-primary">Aposta agressiva: +50%</p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 w-full max-w-[200px] mx-auto">
-                          <Button
-                              onClick={() => handleTrade('buy', tradeAmount)}
-                              className="h-12 text-lg font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
-                          >
-                              <ArrowUpRight className="h-5 w-5 mr-2" />
-                              CALL
-                          </Button>
-                          <Button
-                              onClick={() => handleTrade('sell', tradeAmount)}
-                              className="h-12 text-lg font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                          >
-                              <ArrowDownLeft className="h-5 w-5 mr-2" />
-                              PUT
+                          <Button variant="outline" size="icon" className="absolute right-0 top-0 h-9 w-9" onClick={handleIncrementAmount}>
+                              <Plus className="h-4 w-4" />
                           </Button>
                       </div>
                   </div>
-              ) : (
-                  // MODO SIMPLES
-                  <div className="flex flex-col items-center gap-4 w-full">
-                      <div className="w-full max-w-[200px] mx-auto">
-                          <Label className="text-xs text-muted-foreground uppercase tracking-wider text-center block mb-1">Tempo</Label>
-                          <Select value={String(tradeDuration)} onValueChange={(val) => setTradeDuration(Number(val))}>
-                              <SelectTrigger className="h-9 bg-input/80 border-border/50 text-foreground backdrop-blur-sm">
-                                  <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                  <SelectItem value="30">30 segundos</SelectItem>
-                                  <SelectItem value="60">1 minuto</SelectItem>
-                                  <SelectItem value="300">5 minutos</SelectItem>
-                              </SelectContent>
-                          </Select>
-                      </div>
-                      <div className="w-full max-w-[200px] mx-auto">
-                          <Label className="text-xs text-muted-foreground uppercase tracking-wider text-center block mb-1">Investimento</Label>
-                          <div className="relative">
-                              <Button variant="outline" size="icon" className="absolute left-0 top-0 h-9 w-9" onClick={handleDecrementAmount}>
-                                  <Minus className="h-4 w-4" />
-                              </Button>
-                              <span className="absolute left-10 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
-                              <Input
-                                  type="text"
-                                  value={formatCurrency(tradeAmount)}
-                                  onChange={handleInvestmentChange}
-                                  className="h-9 text-center pl-16 pr-10 bg-input/80 border-border/50 text-foreground backdrop-blur-sm"
-                              />
-                              <Button variant="outline" size="icon" className="absolute right-0 top-0 h-9 w-9" onClick={handleIncrementAmount}>
-                                  <Plus className="h-4 w-4" />
-                              </Button>
-                          </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 w-full max-w-[200px] mx-auto">
-                          <Button
-                              ref={buyButtonRef}
-                              onClick={() => handleTrade('buy', tradeAmount)}
-                              className="h-12 text-lg font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
-                          >
-                              <ArrowUpRight className="h-5 w-5 mr-2" />
-                              CALL
-                          </Button>
-                          <Button
-                              ref={sellButtonRef}
-                              onClick={() => handleTrade('sell', tradeAmount)}
-                              className="h-12 text-lg font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                          >
-                              <ArrowDownLeft className="h-5 w-5 mr-2" />
-                              PUT
-                          </Button>
-                      </div>
+                  <div className="grid grid-cols-2 gap-2 w-full max-w-[200px] mx-auto">
+                      <Button
+                          ref={buyButtonRef}
+                          onClick={() => handleTrade('buy', tradeAmount)}
+                          className="h-12 text-lg font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
+                      >
+                          <ArrowUpRight className="h-5 w-5 mr-2" />
+                          CALL
+                      </Button>
+                      <Button
+                          ref={sellButtonRef}
+                          onClick={() => handleTrade('sell', tradeAmount)}
+                          className="h-12 text-lg font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                      >
+                          <ArrowDownLeft className="h-5 w-5 mr-2" />
+                          PUT
+                      </Button>
                   </div>
-              )}
-          </div>
-           <div className="hidden md:flex justify-center items-center">
-              <div className="flex flex-col items-center gap-1">
-                  <Label htmlFor="pro-mode-switch" className="text-xs text-muted-foreground">Modo PRO</Label>
-                  <Switch
-                      id="pro-mode-switch"
-                      checked={isProMode}
-                      onCheckedChange={setIsProMode}
-                  />
               </div>
           </div>
       </aside>
     </div>
   );
 }
+

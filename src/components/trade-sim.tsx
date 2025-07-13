@@ -93,7 +93,7 @@ interface TradeDetails {
 export interface Achievement {
     name: string;
     wins: number;
-    icon: React.ElementType;
+    icon: string;
     color: string;
     glowColor: string;
     bgColor: string;
@@ -104,9 +104,9 @@ export interface Achievement {
 }
 
 const achievements: Achievement[] = [
-    { name: 'Bronze', wins: 5, icon: Medal, color: 'text-[#cd7f32]', glowColor: '#cd7f32', bgColor: 'bg-[#cd7f32]/10', shadowColor: 'shadow-[#cd7f32]/20', gradientFrom: 'from-[#4a2f14]', gradientTo: 'to-[#13161c]', progressBg: '[&>div]:bg-[#cd7f32]' },
-    { name: 'Prata', wins: 10, icon: Award, color: 'text-[#c0c0c0]', glowColor: '#c0c0c0', bgColor: 'bg-[#c0c0c0]/10', shadowColor: 'shadow-[#c0c0c0]/20', gradientFrom: 'from-[#4c4c4c]', gradientTo: 'to-[#13161c]', progressBg: '[&>div]:bg-[#c0c0c0]' },
-    { name: 'Ouro', wins: 20, icon: Trophy, color: 'text-[#ffd700]', glowColor: '#ffd700', bgColor: 'bg-[#ffd700]/10', shadowColor: 'shadow-[#ffd700]/20', gradientFrom: 'from-[#5e4d00]', gradientTo: 'to-[#13161c]', progressBg: '[&>div]:bg-[#ffd700]' },
+    { name: 'Bronze', wins: 5, icon: 'https://i.imgur.com/5bHlFMk.png', color: 'text-[#cd7f32]', glowColor: '#cd7f32', bgColor: 'bg-[#cd7f32]/10', shadowColor: 'shadow-[#cd7f32]/20', gradientFrom: 'from-[#4a2f14]', gradientTo: 'to-[#13161c]', progressBg: '[&>div]:bg-[#cd7f32]' },
+    { name: 'Prata', wins: 10, icon: 'https://i.imgur.com/QJSfkXS.png', color: 'text-[#c0c0c0]', glowColor: '#c0c0c0', bgColor: 'bg-[#c0c0c0]/10', shadowColor: 'shadow-[#c0c0c0]/20', gradientFrom: 'from-[#4c4c4c]', gradientTo: 'to-[#13161c]', progressBg: '[&>div]:bg-[#c0c0c0]' },
+    { name: 'Ouro', wins: 20, icon: 'https://i.imgur.com/cBYri2j.png', color: 'text-[#ffd700]', glowColor: '#ffd700', bgColor: 'bg-[#ffd700]/10', shadowColor: 'shadow-[#ffd700]/20', gradientFrom: 'from-[#5e4d00]', gradientTo: 'to-[#13161c]', progressBg: '[&>div]:bg-[#ffd700]' },
 ];
 
 const mockPlayers: Player[] = [
@@ -868,7 +868,7 @@ function GameUI() {
           <AlertDialogContent className="bg-gradient-to-br from-[#2a2a3a] to-[#1a1a2a] border-primary/50 text-white">
               <AlertDialogHeader>
                   <div className="flex justify-center mb-4">
-                      {rankUpInfo && <rankUpInfo.rank.icon className={cn("h-24 w-24", rankUpInfo.rank.color)} style={{ filter: `drop-shadow(0 0 20px ${rankUpInfo.rank.glowColor})` }} />}
+                      {rankUpInfo && <Image src={rankUpInfo.rank.icon} alt={rankUpInfo.rank.name} width={96} height={96} style={{ filter: `drop-shadow(0 0 20px ${rankUpInfo.rank.glowColor})` }} />}
                   </div>
                   <AlertDialogTitle className="text-center text-3xl font-bold">Parabéns!</AlertDialogTitle>
                   <AlertDialogDescription className="text-center text-lg text-white/80 mt-2">

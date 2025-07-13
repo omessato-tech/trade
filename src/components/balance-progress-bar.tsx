@@ -1,24 +1,24 @@
 
 "use client";
 
-import { Medal, Award, Trophy } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 interface Tier {
   name: string;
   min: number;
   max: number;
-  icon: React.ElementType;
+  icon: string;
   color: string;
   progressBg: string;
 }
 
 const tiers: Tier[] = [
-  { name: 'Bronze', min: 0, max: 10000, icon: Medal, color: 'text-[#cd7f32]', progressBg: '[&>div]:bg-[#cd7f32]' },
-  { name: 'Prata', min: 10000, max: 500000, icon: Award, color: 'text-[#c0c0c0]', progressBg: '[&>div]:bg-[#c0c0c0]' },
-  { name: 'Ouro', min: 500000, max: 1000000, icon: Trophy, color: 'text-[#ffd700]', progressBg: '[&>div]:bg-[#ffd700]' },
+  { name: 'Bronze', min: 0, max: 10000, icon: 'https://i.imgur.com/5bHlFMk.png', color: 'text-[#cd7f32]', progressBg: '[&>div]:bg-[#cd7f32]' },
+  { name: 'Prata', min: 10000, max: 500000, icon: 'https://i.imgur.com/QJSfkXS.png', color: 'text-[#c0c0c0]', progressBg: '[&>div]:bg-[#c0c0c0]' },
+  { name: 'Ouro', min: 500000, max: 1000000, icon: 'https://i.imgur.com/cBYri2j.png', color: 'text-[#ffd700]', progressBg: '[&>div]:bg-[#ffd700]' },
 ];
 
 const formatBalance = (value: number) => {
@@ -34,8 +34,8 @@ export const BalanceProgressBar = ({ balance }: { balance: number }) => {
     if (balance >= tiers[tiers.length - 1].max) {
       const finalTier = tiers[tiers.length - 1];
       return (
-        <div className="flex items-center gap-4 bg-secondary/30 p-2 rounded-lg w-full">
-            <finalTier.icon className={cn("h-8 w-8 shrink-0", finalTier.color)} />
+        <div className="flex items-center gap-2 md:gap-4 bg-secondary/30 p-2 rounded-lg w-full">
+            <Image src={finalTier.icon} alt={finalTier.name} width={32} height={32} className="shrink-0" />
             <div className="flex-1">
                 <div className="flex justify-between text-xs font-bold mb-1">
                     <span className="text-foreground">{formatBalance(balance)}</span>
@@ -52,11 +52,11 @@ export const BalanceProgressBar = ({ balance }: { balance: number }) => {
     }
 
     const progress = ((balance - currentTier.min) / (currentTier.max - currentTier.min)) * 100;
-    const { icon: Icon, color, progressBg } = currentTier;
+    const { icon, color, progressBg } = currentTier;
     
     return (
-        <div className="flex items-center gap-4 bg-secondary/30 p-2 rounded-lg w-full">
-            <Icon className={cn("h-8 w-8 shrink-0", color)} />
+        <div className="flex items-center gap-2 md:gap-4 bg-secondary/30 p-2 rounded-lg w-full">
+            <Image src={icon} alt={currentTier.name} width={32} height={32} className="shrink-0" />
             <div className="flex-1">
                 <div className="flex justify-between text-xs font-bold mb-1">
                     <span className="text-foreground">{formatBalance(balance)}</span>

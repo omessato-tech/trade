@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -17,27 +18,36 @@ interface AchievementsPanelProps {
 }
 
 const CurrentRankDisplay = ({ rank, winCount }: { rank: Achievement | undefined; winCount: number }) => {
-    const displayRank = rank || {
-        name: 'Iniciante',
-        icon: Trophy,
-        color: 'text-muted-foreground/30',
-        glowColor: 'transparent',
-        gradientFrom: 'from-muted/10',
-        gradientTo: 'to-background/10'
-    };
-
+    if (!rank) {
+        return (
+            <div className="relative flex flex-col items-center text-center p-8 rounded-xl bg-gradient-to-b from-muted/10 to-background/10 overflow-hidden border border-border/20">
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/5 to-transparent opacity-50" />
+                <Trophy 
+                    className="h-32 w-32 mb-4 text-muted-foreground/30"
+                    style={{ filter: `drop-shadow(0 0 15px transparent)` }} 
+                />
+                <h2 className="text-3xl font-bold text-white z-10">Iniciante</h2>
+                <p className="text-muted-foreground z-10">Continue negociando para subir de rank.</p>
+            </div>
+        );
+    }
+    
     return (
         <div className={cn(
             "relative flex flex-col items-center text-center p-8 rounded-xl bg-gradient-to-b overflow-hidden border border-border/20",
-            displayRank.gradientFrom, displayRank.gradientTo
+            rank.gradientFrom, rank.gradientTo
         )}>
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/5 to-transparent opacity-50" />
-            <displayRank.icon 
-                className={cn("h-32 w-32 mb-4", displayRank.color)} 
-                style={{ filter: `drop-shadow(0 0 15px ${displayRank.glowColor})` }} 
+            <Image 
+                src={rank.icon}
+                alt={rank.name}
+                width={128}
+                height={128}
+                className="mb-4"
+                style={{ filter: `drop-shadow(0 0 15px ${rank.glowColor})` }} 
             />
-            <h2 className="text-3xl font-bold text-white z-10">{rank ? `Você é ${rank.name}!` : "Iniciante"}</h2>
-            <p className="text-muted-foreground z-10">{rank ? `Baseado em suas ${winCount} vitórias.` : 'Continue negociando para subir de rank.'}</p>
+            <h2 className="text-3xl font-bold text-white z-10">{`Você é ${rank.name}!`}</h2>
+            <p className="text-muted-foreground z-10">{`Baseado em suas ${winCount} vitórias.`}</p>
         </div>
     );
 };
@@ -60,10 +70,10 @@ const AchievementCard = ({ ach, isUnlocked }: { ach: Achievement; isUnlocked: bo
             : 'bg-background/20 border-border/50 hover:bg-background/30 hover:border-border'
     )}>
         <div className={cn(
-            "flex-shrink-0 p-3 rounded-full",
+            "flex-shrink-0 p-2 rounded-full",
             isUnlocked ? ach.bgColor : 'bg-background/20'
         )}>
-            <ach.icon className={cn("h-10 w-10", isUnlocked ? ach.color : 'text-muted-foreground/60')} />
+            <Image src={ach.icon} alt={ach.name} width={40} height={40} />
         </div>
         <div className="flex-1">
             <p className={cn("font-bold text-lg", isUnlocked ? "text-white" : "text-muted-foreground")}>{ach.name}</p>
